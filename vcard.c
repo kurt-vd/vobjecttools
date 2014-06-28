@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <error.h>
 
@@ -79,12 +80,23 @@ const char *vprop_value(struct vprop *vp)
 /* walk through vprop meta data */
 const char *vprop_next_meta(struct vprop *vp, const char *str)
 {
+	char *lo;
+
 	if (!str)
 		return vp->meta;
 	/* take str after this str in memory, only one 0 terminator allowed */
 	str += strlen(str)+1;
 	if (str >= vp->value)
 		return NULL;
+	/*
+	 * Avoid CAPITALIZED metadata
+	 * This will burn cpu cycles only when & each time that
+	 * the metadata is requested.
+	 * I considered that most flows will only come here when
+	 * a decision to use this vcard has already been made.
+	 */
+	for (lo = (char *)str; *lo; ++lo)
+		*lo = tolower(*lo);
 	return str;
 }
 
