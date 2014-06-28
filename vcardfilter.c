@@ -17,20 +17,31 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <unistd.h>
+#include <error.h>
 #include <getopt.h>
+
+#include "vcard.h"
 
 #define NAME "vcardfilter"
 
 /* program options */
 static const char help_msg[] =
 	NAME ": filter VCard properties\n"
-	"usage:	" NAME " [OPTIONS ...] NEEDLE\n"
+	"usage:	" NAME " [OPTIONS ...] NEEDLE [FILE ...]\n"
 	"\n"
 	"Options\n"
 	" -V, --version		Show version\n"
 	" -v, --verbose		Verbose output\n"
+
+	" -p, --prop=PROP	Which property to retrieve (default: EMAIL)\n"
+	"\n"
+	"Arguments\n"
+	" NEEDLE	The text to look for in NAME or <PROP>\n"
+	" FILE		Files to use, '-' for stdin\n"
+	"		No files means 'stdin only'\n"
 	;
 
 #ifdef _GNU_SOURCE
@@ -38,21 +49,83 @@ static struct option long_opts[] = {
 	{ "help", no_argument, NULL, '?', },
 	{ "version", no_argument, NULL, 'V', },
 	{ "verbose", no_argument, NULL, 'v', },
+
+	{ "prop", required_argument, NULL, 'p', },
 	{ },
 };
 #else
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?";
+static const char optstring[] = "Vv?p:";
 
 /* program variables */
 static int verbose;
+
+void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
+{
+	const char *name, *str, *eq;
+	struct vprop *vp;
+	int nprop = 0, nmeta;
+
+	name = vcard_prop(vc, "FN") ?: "<no name>";
+
+	for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
+		if (strcasecmp(lookfor, vprop_name(vp)))
+			continue;
+		if ((nthprop >= 0) && (nthprop != nprop++))
+			continue;
+		printf("%s\t%s", name, vprop_value(vp));
+		for (str = vprop_next_meta(vp, NULL), nmeta = 0; str;
+				str = vprop_next_meta(vp, str), ++nmeta) {
+			eq = strchr(str, '=');
+			printf("%c%s", nmeta ? ',' : '\t', eq ? eq+1 : str);
+		}
+		printf("\n");
+	}
+}
+
+/* real filter program */
+int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
+{
+	struct vcard *vc;
+	struct vprop *vp;
+	int linenr = 0, ncards = 0, nprop;
+	const char *propname;
+
+	while (1) {
+		vc = vcard_next(fp, &linenr);
+		if (!vc)
+			break;
+		nprop = 0;
+		for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
+			/* match in name */
+			propname = vprop_name(vp);
+			if (!strcasecmp(propname, "FN")) {
+				if (strcasestr(vprop_value(vp), needle)) {
+					vcard_add_result(vc, lookfor, -1);
+					break;
+				}
+			} else if (!strcasecmp(propname, lookfor)) {
+				if (strcasestr(vprop_value(vp), needle))
+					vcard_add_result(vc, lookfor, nprop);
+					/* don't abort the loop here, maybe add
+					 * other property entries (like multiple
+					 * email addresses */
+				++nprop;
+			}
+		}
+		vcard_free(vc);
+	}
+	return ncards;
+}
 
 int main(int argc, char *argv[])
 {
 	int opt;
 	const char *needle;
+	const char *lookfor = "email";
+	FILE *fp;
 
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
@@ -64,6 +137,10 @@ int main(int argc, char *argv[])
 	case 'v':
 		++verbose;
 		break;
+
+	case 'p':
+		lookfor = optarg;
+		break;
 	case '?':
 		fputs(help_msg, stderr);
 		exit(0);
@@ -74,13 +151,27 @@ int main(int argc, char *argv[])
 		break;
 	}
 
-	needle = argv[optind];
-	if (!needle) {
+	if (optind >= argc) {
 		fprintf(stderr, "no search string");
 		fputs(help_msg, stderr);
 		exit(1);
 	}
+	needle = argv[optind++];
 
+	/* emit 1 line to ignore for mutt */
+	printf("%s %s\n", NAME, VERSION);
+
+	/* filter from file(s) */
+	if (!argv[optind])
+		vcard_filter(stdin, needle, lookfor);
+	else for (; argv[optind]; ++optind) {
+		fp = fopen(argv[optind], "r");
+		if (!fp)
+			error(1, errno, "fopen %s", argv[optind]);
+		vcard_filter(fp, needle, lookfor);
+		fclose(fp);
+	}
+	/* emit results to stdout */
 	return 0;
 }
 
