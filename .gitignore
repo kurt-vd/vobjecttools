@@ -1,0 +1,10 @@
+# intermediate files
+*.o
+
+# output binaries
+
+# build configuration
+config.mk
+
+# CTAGS files
+/tags
