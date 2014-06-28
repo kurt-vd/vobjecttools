@@ -88,6 +88,9 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 
 		for (str = vprop_next_meta(vp, NULL), nmeta = 0; str;
 				str = vprop_next_meta(vp, str)) {
+			if (!strncasecmp(str, "X-", 2))
+				/* ignore Xtended metadata */
+				continue;
 			if (!strcasecmp(lookfor, "EMAIL") && !strcasecmp(str, "TYPE=INTERNET"))
 				/* ignore 'internet' type for email ... */
 				continue;
