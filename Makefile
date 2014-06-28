@@ -1,4 +1,4 @@
-PROGRAMS =
+PROGRAMS = vcardfilter
 default: $(PROGRAMS)
 
 LOCALVERSION	:= $(shell ./getlocalversion .)

@@ -2,9 +2,13 @@
 *.o
 
 # output binaries
+vcardfilter
 
 # build configuration
 config.mk
 
 # CTAGS files
 /tags
+
+# test files
+*.vcf
