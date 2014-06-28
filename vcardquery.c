@@ -87,9 +87,13 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 			printf("%s\t%s", name, vprop_value(vp));
 
 		for (str = vprop_next_meta(vp, NULL), nmeta = 0; str;
-				str = vprop_next_meta(vp, str), ++nmeta) {
+				str = vprop_next_meta(vp, str)) {
+			if (!strcasecmp(lookfor, "EMAIL") && !strcasecmp(str, "TYPE=INTERNET"))
+				/* ignore 'internet' type for email ... */
+				continue;
 			eq = strchr(str, '=');
 			printf("%c%s", nmeta ? ',' : '\t', eq ? eq+1 : str);
+			++nmeta;
 		}
 		printf("\n");
 	}
