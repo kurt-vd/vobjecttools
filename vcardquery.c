@@ -37,6 +37,8 @@ static const char help_msg[] =
 	" -v, --verbose		Verbose output\n"
 
 	" -p, --prop=PROP	Which property to retrieve (default: EMAIL)\n"
+	" -s, --swap		Output property, then name, then metadata\n"
+	" -M, --mutt		Output for Mutt (prop=EMAIL, swap + header line)\n"
 	"\n"
 	"Arguments\n"
 	" NEEDLE	The text to look for in NAME or <PROP>\n"
@@ -51,16 +53,20 @@ static struct option long_opts[] = {
 	{ "verbose", no_argument, NULL, 'v', },
 
 	{ "prop", required_argument, NULL, 'p', },
+	{ "swap", no_argument, NULL, 's', },
+	{ "mutt", no_argument, NULL, 'M', },
 	{ },
 };
 #else
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?p:";
+static const char optstring[] = "Vv?p:sM";
 
 /* program variables */
 static int verbose;
+/* print value first, then name, then metadata (like for Mutt) */
+static int swapoutput;
 
 void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 {
@@ -75,7 +81,11 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 			continue;
 		if ((nthprop >= 0) && (nthprop != nprop++))
 			continue;
-		printf("%s\t%s", vprop_value(vp), name);
+		if (swapoutput)
+			printf("%s\t%s", vprop_value(vp), name);
+		else
+			printf("%s\t%s", name, vprop_value(vp));
+
 		for (str = vprop_next_meta(vp, NULL), nmeta = 0; str;
 				str = vprop_next_meta(vp, str), ++nmeta) {
 			eq = strchr(str, '=');
@@ -126,6 +136,7 @@ int main(int argc, char *argv[])
 	const char *needle;
 	const char *lookfor = "email";
 	FILE *fp;
+	int mutt = 0;
 
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
@@ -140,6 +151,14 @@ int main(int argc, char *argv[])
 
 	case 'p':
 		lookfor = optarg;
+		break;
+	case 's':
+		swapoutput = 1;
+		break;
+	case 'M':
+		mutt = 1;
+		swapoutput = 1;
+		lookfor = "EMAIL";
 		break;
 	case '?':
 		fputs(help_msg, stderr);
@@ -158,8 +177,9 @@ int main(int argc, char *argv[])
 	}
 	needle = argv[optind++];
 
-	/* emit 1 line to ignore for mutt */
-	printf("%s %s\n", NAME, VERSION);
+	if (mutt)
+		/* emit 1 line to ignore for mutt */
+		printf("%s %s\n", NAME, VERSION);
 
 	/* filter from file(s) */
 	if (!argv[optind])
