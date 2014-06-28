@@ -2,7 +2,7 @@
 *.o
 
 # output binaries
-vcardfilter
+vcardquery
 
 # build configuration
 config.mk

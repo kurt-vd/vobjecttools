@@ -25,7 +25,7 @@
 
 #include "vcard.h"
 
-#define NAME "vcardfilter"
+#define NAME "vcardquery"
 
 /* program options */
 static const char help_msg[] =

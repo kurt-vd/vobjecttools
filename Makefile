@@ -1,4 +1,4 @@
-PROGRAMS = vcardfilter
+PROGRAMS = vcardquery
 default: $(PROGRAMS)
 
 LOCALVERSION	:= $(shell ./getlocalversion .)
@@ -11,7 +11,7 @@ CPPFLAGS= -D_GNU_SOURCE
 
 CPPFLAGS+= -DVERSION="\"$(LOCALVERSION)\""
 
-vcardfilter: vcard.o
+vcardquery: vcard.o
 
 install: $(PROGRAMS)
 	install -vs -t $(DESTDIR)$(PREFIX)/bin/ $(PROGRAMS)
