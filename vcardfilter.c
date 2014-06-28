@@ -75,7 +75,7 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 			continue;
 		if ((nthprop >= 0) && (nthprop != nprop++))
 			continue;
-		printf("%s\t%s", name, vprop_value(vp));
+		printf("%s\t%s", vprop_value(vp), name);
 		for (str = vprop_next_meta(vp, NULL), nmeta = 0; str;
 				str = vprop_next_meta(vp, str), ++nmeta) {
 			eq = strchr(str, '=');
