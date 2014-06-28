@@ -3,6 +3,7 @@ default: $(PROGRAMS)
 
 LOCALVERSION	:= $(shell ./getlocalversion .)
 
+PREFIX	= /usr/local
 CFLAGS	= -Wall
 CPPFLAGS= -D_GNU_SOURCE
 
@@ -11,6 +12,9 @@ CPPFLAGS= -D_GNU_SOURCE
 CPPFLAGS+= -DVERSION="\"$(LOCALVERSION)\""
 
 vcardfilter: vcard.o
+
+install: $(PROGRAMS)
+	install -vs -t $(DESTDIR)$(PREFIX)/bin/ $(PROGRAMS)
 
 clean:
 	rm -f $(wildcard *.o) $(PROGRAMS)
