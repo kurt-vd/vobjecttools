@@ -77,17 +77,17 @@ const char *vprop_value(struct vprop *vp)
 	return vp->value;
 }
 
-/* walk through vprop meta data */
-const char *vprop_next_meta(struct vprop *vp, const char *str)
+static const char *locase(char *str)
 {
 	char *lo;
 
-	if (!str)
-		return vp->meta;
-	/* take str after this str in memory, only one 0 terminator allowed */
-	str += strlen(str)+1;
-	if (str >= vp->value)
-		return NULL;
+	for (lo = str; *lo; ++lo)
+		*lo = tolower(*lo);
+	return str;
+}
+/* walk through vprop meta data */
+const char *vprop_next_meta(struct vprop *vp, const char *str)
+{
 	/*
 	 * Avoid CAPITALIZED metadata
 	 * This will burn cpu cycles only when & each time that
@@ -95,9 +95,13 @@ const char *vprop_next_meta(struct vprop *vp, const char *str)
 	 * I considered that most flows will only come here when
 	 * a decision to use this vcard has already been made.
 	 */
-	for (lo = (char *)str; *lo; ++lo)
-		*lo = tolower(*lo);
-	return str;
+	if (!str)
+		return locase(vp->meta);
+	/* take str after this str in memory, only one 0 terminator allowed */
+	str += strlen(str)+1;
+	if (str >= vp->value)
+		return NULL;
+	return locase((char *)str);
 }
 
 /* fast access functions */
