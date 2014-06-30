@@ -68,6 +68,56 @@ static int verbose;
 /* print value first, then name, then metadata (like for Mutt) */
 static int swapoutput;
 
+/* generic file open method */
+static FILE *myfopen(const char *filename, const char *mode)
+{
+	if (*filename == '~') {
+		char *tmp;
+		FILE *fp;
+
+		asprintf(&tmp, "%s/%s", getenv("HOME"), filename+2);
+		fp = fopen(tmp, mode);
+		free(tmp);
+		return fp;
+	} else
+		return fopen(filename, mode);
+}
+
+/* parse config file */
+static int parse_config(const char *filename)
+{
+	char *line = NULL;
+	size_t linesize = 0, linenr = 0;
+	int ret;
+	char *tok;
+	FILE *fp;
+
+	fp = myfopen(filename, "r");
+	if (!fp) {
+		if (verbose)
+			error(0, errno, "fopen %s", filename);
+		return 0;
+	}
+
+	while (1) {
+		ret = getline(&line, &linesize, fp);
+		if (ret < 0)
+			break;
+		++linenr;
+		if (line[0] == '#')
+			/* ignore comments */
+			continue;
+		tok = strtok(line, " \t\r\n\v\f");
+		if (!tok) {
+			/* empty line */
+		} else if (verbose)
+			error(0, 0, "unknown config option '%s' in %s:%lu", tok,
+					filename, linenr);
+	}
+	fclose(fp);
+	return 0;
+}
+
 void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 {
 	const char *name, *str, *eq;
@@ -145,6 +195,7 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	int mutt = 0;
 
+	parse_config("~/.vcardquery");
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
 	switch (opt) {
