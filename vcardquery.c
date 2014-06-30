@@ -68,6 +68,10 @@ static int verbose;
 /* print value first, then name, then metadata (like for Mutt) */
 static int swapoutput;
 
+/* configuration values */
+static char **files;
+static int nfiles, rfiles; /* used & reserved files */
+
 /* generic file open method */
 static FILE *myfopen(const char *filename, const char *mode)
 {
@@ -110,6 +114,13 @@ static int parse_config(const char *filename)
 		tok = strtok(line, " \t\r\n\v\f");
 		if (!tok) {
 			/* empty line */
+		} else if (!strcmp(tok, "file")) {
+			/* add config file */
+			if ((nfiles+1) >= rfiles) {
+				rfiles += 16;
+				files = realloc(files, rfiles * sizeof(*files));
+			}
+			files[nfiles++] = strdup(strtok(NULL, " \t\r\n\v\f"));
 		} else if (verbose)
 			error(0, 0, "unknown config option '%s' in %s:%lu", tok,
 					filename, linenr);
@@ -189,12 +200,13 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 
 int main(int argc, char *argv[])
 {
-	int opt;
+	int opt, j;
 	const char *needle;
 	const char *lookfor = "email";
 	FILE *fp;
 	int mutt = 0;
 
+	parse_config("/etc/vcardquery.conf");
 	parse_config("~/.vcardquery");
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
@@ -240,15 +252,22 @@ int main(int argc, char *argv[])
 		printf("%s %s\n", NAME, VERSION);
 
 	/* filter from file(s) */
-	if (!argv[optind])
-		vcard_filter(stdin, needle, lookfor);
-	else for (; argv[optind]; ++optind) {
-		fp = fopen(argv[optind], "r");
+	if (argv[optind])
+	for (; argv[optind]; ++optind) {
+		fp = myfopen(argv[optind], "r");
 		if (!fp)
 			error(1, errno, "fopen %s", argv[optind]);
 		vcard_filter(fp, needle, lookfor);
 		fclose(fp);
-	}
+	} else if (nfiles)
+	for (j = 0; j < nfiles; ++j) {
+		fp = myfopen(files[j], "r");
+		if (!fp)
+			error(1, errno, "fopen %s", files[j]);
+		vcard_filter(fp, needle, lookfor);
+		fclose(fp);
+	} else
+		vcard_filter(stdin, needle, lookfor);
 	/* emit results to stdout */
 	return 0;
 }
