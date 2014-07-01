@@ -133,6 +133,35 @@ static int parse_config(const char *filename)
 	return 0;
 }
 
+/*
+ * Parse elements into a vector of strings.
+ * Element seperators will be overwritten with 0
+ * To restore, use cleanupstrvector()
+ */
+static int savestrvector(char *str, int sep, char **vec, int rvec)
+{
+	int nvec = 0;
+
+	do {
+		vec[nvec++] = str;
+		str = strchr(str, sep);
+		if (str && (nvec >= rvec))
+			break;
+		if (str)
+			*str++ = 0;
+	} while (str);
+	/* pad with NULL */
+	memset(vec+nvec, 0, (rvec - nvec) * sizeof(*vec));
+	return nvec;
+}
+
+static void cleanupstrvector(char **vec, int sep)
+{
+	/* restore seperators */
+	for (; *vec; ++vec)
+		(*vec)[strlen(*vec)] = sep;
+}
+
 /* compact representation of meta data */
 static const char *vprop_meta_str(struct vprop *vp)
 {
@@ -163,7 +192,8 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 {
 	const char *meta;
 	struct vprop *vp;
-	int nprop = 0;
+	int nprop = 0, nvec, j;
+	char *vec[16];
 
 	printf("%s\n", vcard_prop(vc, "FN") ?: "<no name>");
 
@@ -176,7 +206,24 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 		meta = vprop_meta_str(vp);
 		if (meta)
 			printf("\t[%s]\n", meta);
-		printf("\t%s\n", vprop_value(vp));
+
+		nvec = savestrvector((char *)vprop_value(vp), ';', vec, 16);
+		if (!strcasecmp("ADR", lookfor)) {
+			if (vec[0] && vec[0][0])
+				printf("\t%s\n", vec[0]);
+			if (vec[1] && vec[1][0])
+				printf("\t%s\n", vec[1]);
+			if (vec[2] && vec[2][0])
+				printf("\t%s\n", vec[2]);
+			if ((vec[3] && vec[3][0]) || (vec[5] && vec[5][0]))
+				printf("\t%s %s\n", vec[5], vec[3]);
+			if (vec[4] && vec[4][0])
+				printf("\t%s\n", vec[4]);
+			if (vec[6] && vec[6][0])
+				printf("\t%s\n", vec[6]);
+		} else for (j = 0; j < nvec; ++j)
+		       printf("\t%s\n", vec[j]);
+		cleanupstrvector(vec, ';');
 	}
 }
 
