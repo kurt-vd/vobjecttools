@@ -354,6 +354,8 @@ int main(int argc, char *argv[])
 		fp = myfopen(argv[optind], "r");
 		if (!fp)
 			error(1, errno, "fopen %s", argv[optind]);
+		if (verbose)
+			printf("## %s\n", argv[optind]);
 		vcard_filter(fp, needle, lookfor);
 		fclose(fp);
 	} else if (nfiles)
@@ -361,6 +363,8 @@ int main(int argc, char *argv[])
 		fp = myfopen(files[j], "r");
 		if (!fp)
 			error(1, errno, "fopen %s", files[j]);
+		if (verbose)
+			printf("## %s\n", files[j]);
 		vcard_filter(fp, needle, lookfor);
 		fclose(fp);
 	} else
