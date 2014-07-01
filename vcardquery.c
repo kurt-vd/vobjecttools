@@ -39,6 +39,7 @@ static const char help_msg[] =
 	" -p, --prop=PROP	Which property to retrieve (default: EMAIL)\n"
 	" -s, --swap		Output property, then name, then metadata\n"
 	" -M, --mutt		Output for Mutt (prop=EMAIL, swap + header line)\n"
+	" -i, --indent		Output with indents\n"
 	"\n"
 	"Arguments\n"
 	" NEEDLE	The text to look for in NAME or <PROP>\n"
@@ -55,18 +56,21 @@ static struct option long_opts[] = {
 	{ "prop", required_argument, NULL, 'p', },
 	{ "swap", no_argument, NULL, 's', },
 	{ "mutt", no_argument, NULL, 'M', },
+	{ "indent", no_argument, NULL, 'i', },
 	{ },
 };
 #else
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?p:sM";
+static const char optstring[] = "Vv?p:sMi";
 
 /* program variables */
 static int verbose;
 /* print value first, then name, then metadata (like for Mutt) */
 static int swapoutput;
+/* print indented list */
+static int indented;
 
 /* configuration values */
 static char **files;
@@ -154,11 +158,41 @@ static const char *vprop_meta_str(struct vprop *vp)
 	return (ostr > buf) ? buf : NULL;
 }
 
+/* print indented result */
+void vcard_indent_result(struct vcard *vc, const char *lookfor, int nthprop)
+{
+	const char *meta;
+	struct vprop *vp;
+	int nprop = 0;
+	static struct vcard *lastvc; /* defaults to NULL */
+
+	if (vc != lastvc)
+		printf("%s\n", vcard_prop(vc, "FN") ?: "<no name>");
+	lastvc = vc;
+
+	for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
+		if (strcasecmp(lookfor, vprop_name(vp)))
+			continue;
+		if ((nthprop >= 0) && (nthprop != nprop++))
+			continue;
+		/* found a property, first print tags */
+		meta = vprop_meta_str(vp);
+		if (meta)
+			printf("\t[%s]\n", meta);
+		printf("\t%s\n", vprop_value(vp));
+	}
+}
+
 void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 {
 	const char *name, *meta;
 	struct vprop *vp;
 	int nprop = 0;
+
+	if (indented) {
+		vcard_indent_result(vc, lookfor, nthprop);
+		return;
+	}
 
 	name = vcard_prop(vc, "FN") ?: "<no name>";
 
@@ -244,6 +278,9 @@ int main(int argc, char *argv[])
 		mutt = 1;
 		swapoutput = 1;
 		lookfor = "EMAIL";
+		break;
+	case 'i':
+		indented = 1;
 		break;
 	case '?':
 		fputs(help_msg, stderr);
