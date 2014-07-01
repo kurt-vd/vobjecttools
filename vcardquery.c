@@ -159,21 +159,18 @@ static const char *vprop_meta_str(struct vprop *vp)
 }
 
 /* print indented result */
-void vcard_indent_result(struct vcard *vc, const char *lookfor, int nthprop)
+void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 {
 	const char *meta;
 	struct vprop *vp;
 	int nprop = 0;
-	static struct vcard *lastvc; /* defaults to NULL */
 
-	if (vc != lastvc)
-		printf("%s\n", vcard_prop(vc, "FN") ?: "<no name>");
-	lastvc = vc;
+	printf("%s\n", vcard_prop(vc, "FN") ?: "<no name>");
 
 	for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
 		if (strcasecmp(lookfor, vprop_name(vp)))
 			continue;
-		if ((nthprop >= 0) && (nthprop != nprop++))
+		if (!(bitmask & (1 << nprop++)))
 			continue;
 		/* found a property, first print tags */
 		meta = vprop_meta_str(vp);
@@ -183,14 +180,14 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, int nthprop)
 	}
 }
 
-void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
+void vcard_add_result(struct vcard *vc, const char *lookfor, int bitmask)
 {
 	const char *name, *meta;
 	struct vprop *vp;
 	int nprop = 0;
 
 	if (indented) {
-		vcard_indent_result(vc, lookfor, nthprop);
+		vcard_indent_result(vc, lookfor, bitmask);
 		return;
 	}
 
@@ -199,7 +196,7 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 	for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
 		if (strcasecmp(lookfor, vprop_name(vp)))
 			continue;
-		if ((nthprop >= 0) && (nthprop != nprop++))
+		if (!(bitmask & (1 << nprop++)))
 			continue;
 		if (swapoutput)
 			printf("%s\t%s", vprop_value(vp), name);
@@ -217,7 +214,7 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 {
 	struct vcard *vc;
 	struct vprop *vp;
-	int linenr = 0, ncards = 0, nprop;
+	int linenr = 0, ncards = 0, nprop, bitmask;
 	const char *propname;
 
 	while (1) {
@@ -225,23 +222,23 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 		if (!vc)
 			break;
 		nprop = 0;
+		bitmask = 0;
 		for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
 			/* match in name */
 			propname = vprop_name(vp);
 			if (!strcasecmp(propname, "FN")) {
 				if (strcasestr(vprop_value(vp), needle)) {
-					vcard_add_result(vc, lookfor, -1);
+					bitmask = ~0;
 					break;
 				}
 			} else if (!strcasecmp(propname, lookfor)) {
 				if (strcasestr(vprop_value(vp), needle))
-					vcard_add_result(vc, lookfor, nprop);
-					/* don't abort the loop here, maybe add
-					 * other property entries (like multiple
-					 * email addresses */
+					bitmask |= 1 << nprop;
 				++nprop;
 			}
 		}
+		if (bitmask)
+			vcard_add_result(vc, lookfor, bitmask);
 		vcard_free(vc);
 	}
 	return ncards;
