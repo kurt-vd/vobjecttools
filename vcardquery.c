@@ -129,11 +129,36 @@ static int parse_config(const char *filename)
 	return 0;
 }
 
+/* compact representation of meta data */
+static const char *vprop_meta_str(struct vprop *vp)
+{
+	static char buf[1024];
+	const char *str, *eq;
+	char *ostr = buf;
+
+	for (str = vprop_next_meta(vp, NULL); str;
+			str = vprop_next_meta(vp, str)) {
+		if (!strncasecmp(str, "X-", 2))
+			/* ignore Xtended metadata */
+			continue;
+		if (!strcasecmp(vprop_name(vp), "EMAIL") &&
+				!strcasecmp(str, "TYPE=INTERNET"))
+			/* ignore 'internet' type for email ... */
+			continue;
+		eq = strchr(str, '=');
+		if (ostr > buf)
+			*ostr++ = ',';
+		strcpy(ostr, eq ? eq+1 : str);
+		ostr += strlen(str);
+	}
+	return (ostr > buf) ? buf : NULL;
+}
+
 void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 {
-	const char *name, *str, *eq;
+	const char *name, *meta;
 	struct vprop *vp;
-	int nprop = 0, nmeta;
+	int nprop = 0;
 
 	name = vcard_prop(vc, "FN") ?: "<no name>";
 
@@ -146,19 +171,9 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, int nthprop)
 			printf("%s\t%s", vprop_value(vp), name);
 		else
 			printf("%s\t%s", name, vprop_value(vp));
-
-		for (str = vprop_next_meta(vp, NULL), nmeta = 0; str;
-				str = vprop_next_meta(vp, str)) {
-			if (!strncasecmp(str, "X-", 2))
-				/* ignore Xtended metadata */
-				continue;
-			if (!strcasecmp(lookfor, "EMAIL") && !strcasecmp(str, "TYPE=INTERNET"))
-				/* ignore 'internet' type for email ... */
-				continue;
-			eq = strchr(str, '=');
-			printf("%c%s", nmeta ? ',' : '\t', eq ? eq+1 : str);
-			++nmeta;
-		}
+		meta = vprop_meta_str(vp);
+		if (meta)
+			printf("\t%s", meta);
 		printf("\n");
 	}
 }
