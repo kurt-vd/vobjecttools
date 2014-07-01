@@ -214,7 +214,7 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 {
 	struct vcard *vc;
 	struct vprop *vp;
-	int linenr = 0, ncards = 0, nprop, bitmask;
+	int linenr = 0, ncards = 0, nprop, bitmask, propcnt;
 	const char *propname;
 
 	while (1) {
@@ -222,22 +222,23 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 		if (!vc)
 			break;
 		nprop = 0;
+		propcnt = 0;
 		bitmask = 0;
 		for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
 			/* match in name */
 			propname = vprop_name(vp);
 			if (!strcasecmp(propname, "FN")) {
-				if (strcasestr(vprop_value(vp), needle)) {
+				if (strcasestr(vprop_value(vp), needle))
 					bitmask = ~0;
-					break;
-				}
 			} else if (!strcasecmp(propname, lookfor)) {
+				/* count props */
+				++propcnt;
 				if (strcasestr(vprop_value(vp), needle))
 					bitmask |= 1 << nprop;
 				++nprop;
 			}
 		}
-		if (bitmask)
+		if (bitmask && propcnt)
 			vcard_add_result(vc, lookfor, bitmask);
 		vcard_free(vc);
 	}
