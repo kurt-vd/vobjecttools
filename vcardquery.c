@@ -277,6 +277,9 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 			if (!strcasecmp(propname, "FN")) {
 				if (strcasestr(vprop_value(vp), needle))
 					bitmask = ~0;
+			} else if (!strcasecmp(propname, "N")) {
+				if (strcasestr(vprop_value(vp), needle))
+					bitmask = ~0;
 			} else if (!strcasecmp(propname, lookfor)) {
 				/* count props */
 				++propcnt;
