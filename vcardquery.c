@@ -256,13 +256,31 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, int bitmask)
 	}
 }
 
+/* return a searchable telephone nr. */
+static const char *searchable_telnr(const char *str)
+{
+	static char buf[128];
+	char *tel = buf;
+
+	/* allow leading + */
+	if (*str == '+')
+		*tel++ = *str++;
+
+	for (; *str; ++str) {
+		if (strchr("0123456789", *str))
+			*tel++ = *str;
+	}
+	*tel = 0;
+	return buf;
+}
+
 /* real filter program */
 int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 {
 	struct vcard *vc;
 	struct vprop *vp;
 	int linenr = 0, ncards = 0, nprop, bitmask, propcnt;
-	const char *propname;
+	const char *propname, *propval;
 
 	while (1) {
 		vc = vcard_next(fp, &linenr);
@@ -283,7 +301,10 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 			} else if (!strcasecmp(propname, lookfor)) {
 				/* count props */
 				++propcnt;
-				if (strcasestr(vprop_value(vp), needle))
+				propval = vprop_value(vp);
+				if (!strcasecmp(propname, "TEL"))
+					propval = searchable_telnr(propval); 
+				if (strcasestr(propval, needle))
 					bitmask |= 1 << nprop;
 				++nprop;
 			}
