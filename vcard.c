@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 #include <error.h>
 
@@ -230,4 +231,66 @@ struct vcard *vcard_next(FILE *fp, int *linenr)
 	if (line)
 		free(line);
 	return vc;
+}
+
+static int appendprintf(char **pline, size_t *psize, size_t pos, const char *fmt, ...)
+{
+#define BLOCKSZ	64
+	int len;
+	char *printed;
+	va_list va;
+
+	va_start(va, fmt);
+	len = vasprintf(&printed, fmt, va);
+	va_end(va);
+
+	if (len < 0)
+		return 0;
+
+	if ((pos + len + 1) > *psize) {
+		*psize = ((pos + len + 1) + BLOCKSZ -1) % ~(BLOCKSZ-1);
+		*pline = realloc(*pline, *psize);
+	}
+	strcpy((*pline) + pos, printed);
+	free(printed);
+	return len;
+}
+
+/* output vcards, returns the number of ascii lines */
+int vcard_write(const struct vcard *vc, FILE *fp)
+{
+	int nlines = 0;
+	struct vprop *vp;
+	char *line = NULL;
+	const char *meta;
+	size_t linesize = 0, fill, pos, todo;
+
+	fputs("BEGIN:VCARD\n", fp);
+	++nlines;
+
+	/* iterate over all properties */
+	for (vp = vc->props; vp; vp = vp->next) {
+		fill = appendprintf(&line, &linesize, 0, "%s", vp->key);
+		for (meta = vprop_next_meta(vp, NULL); meta; meta =
+				vprop_next_meta(vp, meta))
+			fill += appendprintf(&line, &linesize, fill, ";%s", meta);
+		fill += appendprintf(&line, &linesize, fill, ":%s", vp->value);
+
+		for (pos = 0; pos < fill; pos += todo) {
+			todo = pos ? 79 : 80;
+			if (pos + todo > fill)
+				todo = fill - pos;
+			if (pos)
+				fputc(' ', fp);
+			if (fwrite(line+pos, todo, 1, fp) < 0)
+				error(1, errno, "fwrite");
+			fputc('\n', fp);
+			++nlines;
+		}
+	}
+
+	/* terminate vcard */
+	fputs("END:VCARD\n", fp);
+	++nlines;
+	return nlines;
 }

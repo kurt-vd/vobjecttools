@@ -38,6 +38,9 @@ extern const char *vcard_prop(struct vcard *vc, const char *propname);
 /* read next vcard from file */
 extern struct vcard *vcard_next(FILE *fp, int *linenr);
 
+/* write vcards */
+extern int vcard_write(const struct vcard *vc, FILE *fp);
+
 /* free a vcard */
 extern void vcard_free(struct vcard *vc);
 
