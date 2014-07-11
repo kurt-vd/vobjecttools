@@ -81,8 +81,11 @@ static const char *locase(char *str)
 {
 	char *lo;
 
+	if (!str)
+		goto done;
 	for (lo = str; *lo; ++lo)
 		*lo = tolower(*lo);
+done:
 	return str;
 }
 /* walk through vprop meta data */
@@ -188,7 +191,7 @@ struct vcard *vcard_next(FILE *fp, int *linenr)
 				error(0, 0, "bad line %u", *linenr);
 				continue;
 			}
-			if (savedlen + ret -1 < savedsize -1) {
+			if (savedlen + ret -1 + 1 > savedsize) {
 				savedsize = (savedlen + ret - 1 + 1 + 63) & ~63;
 				saved = realloc(saved, savedsize);
 			}
