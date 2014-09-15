@@ -40,6 +40,7 @@ static const char help_msg[] =
 	" -s, --swap		Output property, then name, then metadata\n"
 	" -M, --mutt		Output for Mutt (prop=EMAIL, swap + header line)\n"
 	" -i, --indent		Output with indents\n"
+	" -b, --browse		Browse all vcard info, show all fields\n"
 	"\n"
 	"Arguments\n"
 	" NEEDLE	The text to look for in NAME or <PROP>\n"
@@ -57,16 +58,18 @@ static struct option long_opts[] = {
 	{ "swap", no_argument, NULL, 's', },
 	{ "mutt", no_argument, NULL, 'M', },
 	{ "indent", no_argument, NULL, 'i', },
+	{ "browse", no_argument, NULL, 'b', },
 	{ },
 };
 #else
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?p:sMi";
+static const char optstring[] = "Vv?p:sMib";
 
 /* program variables */
 static int verbose;
+static int browse;
 /* print value first, then name, then metadata (like for Mutt) */
 static int swapoutput;
 /* print indented list */
@@ -187,6 +190,28 @@ static const char *vprop_meta_str(struct vprop *vp)
 	return (ostr > buf) ? buf : NULL;
 }
 
+static int browse_prop(const char *propname)
+{
+	static const char *const propnames[] = {
+		"N",
+		"ADR",
+		"EMAIL",
+		"TEL",
+		"URL",
+		"ORG",
+		"TITLE",
+		"NOTE",
+		NULL,
+	};
+
+	const char *const *lp;
+
+	for (lp = propnames; *lp; ++lp)
+		if (!strcasecmp(*lp, propname))
+			return 1;
+	return 0;
+}
+
 /* print indented result */
 void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 {
@@ -198,10 +223,15 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 	printf("%s\n", vcard_prop(vc, "FN") ?: "<no name>");
 
 	for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
-		if (strcasecmp(lookfor, vprop_name(vp)))
+		if (!browse && strcasecmp(lookfor, vprop_name(vp)))
 			continue;
-		if (!(bitmask & (1 << nprop++)))
+		if (!browse && !(bitmask & (1 << nprop++)))
 			continue;
+		if (browse && !browse_prop(vprop_name(vp)))
+			continue;
+		printf("\t");
+		if (browse)
+			printf("%s ", vprop_name(vp));
 		/* found a property, first print tags */
 		meta = vprop_meta_str(vp);
 		if (meta)
@@ -209,21 +239,21 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 		printf("\n");
 
 		nvec = savestrvector((char *)vprop_value(vp), ';', vec, 16);
-		if (!strcasecmp("ADR", lookfor)) {
+		if (!strcasecmp("ADR", vprop_name(vp))) {
 			if (vec[0] && vec[0][0])
-				printf("\t%s\n", vec[0]);
+				printf("\t\t%s\n", vec[0]);
 			if (vec[1] && vec[1][0])
-				printf("\t%s\n", vec[1]);
+				printf("\t\t%s\n", vec[1]);
 			if (vec[2] && vec[2][0])
-				printf("\t%s\n", vec[2]);
+				printf("\t\t%s\n", vec[2]);
 			if ((vec[3] && vec[3][0]) || (vec[5] && vec[5][0]))
-				printf("\t%s %s\n", vec[5], vec[3]);
+				printf("\t\t%s %s\n", vec[5], vec[3]);
 			if (vec[4] && vec[4][0])
-				printf("\t%s\n", vec[4]);
+				printf("\t\t%s\n", vec[4]);
 			if (vec[6] && vec[6][0])
-				printf("\t%s\n", vec[6]);
+				printf("\t\t%s\n", vec[6]);
 		} else for (j = 0; j < nvec; ++j)
-		       printf("\t%s\n", vec[j]);
+			printf("\t\t%s\n", vec[j]);
 		cleanupstrvector(vec, ';');
 	}
 }
@@ -349,6 +379,9 @@ int main(int argc, char *argv[])
 		swapoutput = 1;
 		lookfor = "EMAIL";
 		break;
+	case 'b':
+		browse = 1;
+		break;
 	case 'i':
 		indented = 1;
 		break;
@@ -361,6 +394,9 @@ int main(int argc, char *argv[])
 		exit(1);
 		break;
 	}
+
+	if (browse && !indented)
+		error(1, 0, "browseable mode is only implemented for indented output");
 
 	if (optind >= argc) {
 		fprintf(stderr, "no search string");
