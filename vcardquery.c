@@ -205,7 +205,8 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 		/* found a property, first print tags */
 		meta = vprop_meta_str(vp);
 		if (meta)
-			printf("\t[%s]\n", meta);
+			printf("\t[%s]", meta);
+		printf("\n");
 
 		nvec = savestrvector((char *)vprop_value(vp), ';', vec, 16);
 		if (!strcasecmp("ADR", lookfor)) {
