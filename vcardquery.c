@@ -252,8 +252,10 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, int bitmask)
 				printf("\t\t%s\n", vec[4]);
 			if (vec[6] && vec[6][0])
 				printf("\t\t%s\n", vec[6]);
-		} else for (j = 0; j < nvec; ++j)
-			printf("\t\t%s\n", vec[j]);
+		} else for (j = 0; j < nvec; ++j) {
+			if (vec[j] && vec[j][0])
+				printf("\t\t%s\n", vec[j]);
+		}
 		cleanupstrvector(vec, ';');
 	}
 }
