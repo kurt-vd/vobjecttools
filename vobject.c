@@ -7,7 +7,7 @@
 
 #include <error.h>
 
-#include "vcard.h"
+#include "vobject.h"
 
 /* helper functions */
 static void *zalloc(unsigned int size)

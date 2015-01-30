@@ -23,7 +23,7 @@
 #include <error.h>
 #include <getopt.h>
 
-#include "vcard.h"
+#include "vobject.h"
 
 #define NAME "vcardquery"
 

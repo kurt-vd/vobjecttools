@@ -11,8 +11,8 @@ CPPFLAGS= -D_GNU_SOURCE
 
 CPPFLAGS+= -DVERSION="\"$(LOCALVERSION)\""
 
-vcardquery: vcard.o
-testvcard: vcard.o
+vcardquery: vobject.o
+testvcard: vobject.o
 
 install: $(PROGRAMS)
 	install -vs -t $(DESTDIR)$(PREFIX)/bin/ $(PROGRAMS)

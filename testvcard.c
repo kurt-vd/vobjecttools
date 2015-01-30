@@ -24,7 +24,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 
-#include "vcard.h"
+#include "vobject.h"
 
 #define NAME "testvobject"
 
