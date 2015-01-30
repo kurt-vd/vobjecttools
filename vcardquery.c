@@ -333,6 +333,11 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 		vc = vobject_next(fp, &linenr);
 		if (!vc)
 			break;
+		if (strcasecmp(vobject_type(vc), "VCARD")) {
+			/* skip */
+			vobject_free(vc);
+			continue;
+		}
 		nprop = 0;
 		propcnt = 0;
 		bitmask = 0;
