@@ -46,6 +46,9 @@ extern int vobject_write(const struct vobject *vc, FILE *fp);
 /* free a vobject */
 extern void vobject_free(struct vobject *vc);
 
+/* create lowercase copy (cached) of a string */
+extern const char *lowercase(const char *str);
+
 #ifdef __cplusplus
 }
 #endif

@@ -184,7 +184,7 @@ static const char *vprop_meta_str(struct vprop *vp)
 		eq = strchr(str, '=');
 		if (ostr > buf)
 			*ostr++ = ',';
-		strcpy(ostr, eq ? eq+1 : str);
+		strcpy(ostr, lowercase(eq ? eq+1 : str));
 		ostr += strlen(str);
 	}
 	return (ostr > buf) ? buf : NULL;

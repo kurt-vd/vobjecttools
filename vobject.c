@@ -84,17 +84,32 @@ const char *vprop_value(struct vprop *vp)
 	return vp->value;
 }
 
-static const char *locase(char *str)
+/* utility to export lower case string */
+static char *locasestr;
+__attribute__((destructor))
+static void free_locasestr(void)
+{
+	if (locasestr)
+		free(locasestr);
+}
+
+const char *lowercase(const char *str)
 {
 	char *lo;
 
 	if (!str)
-		goto done;
-	for (lo = str; *lo; ++lo)
+		return NULL;
+
+	/* create copy */
+	if (locasestr)
+		free(locasestr);
+	locasestr = strdup(str);
+	/* convert to lowercase */
+	for (lo = locasestr; *lo; ++lo)
 		*lo = tolower(*lo);
-done:
-	return str;
+	return locasestr;
 }
+
 /* walk through vprop meta data */
 const char *vprop_next_meta(struct vprop *vp, const char *str)
 {
@@ -106,12 +121,12 @@ const char *vprop_next_meta(struct vprop *vp, const char *str)
 	 * a decision to use this vobject has already been made.
 	 */
 	if (!str)
-		return locase(vp->meta);
+		return vp->meta;
 	/* take str after this str in memory, only one 0 terminator allowed */
 	str += strlen(str)+1;
 	if (str >= vp->value)
 		return NULL;
-	return locase((char *)str);
+	return str;
 }
 
 /* fast access functions */
