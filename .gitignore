@@ -13,3 +13,4 @@ config.mk
 
 # test files
 *.vcf
+*.ics

@@ -23,6 +23,7 @@ static void *zalloc(unsigned int size)
 
 /* vobject parser struct */
 struct vobject {
+	char *type; /* VCALENDAR, VCARD, VEVENT, ... */
 	struct vprop {
 		struct vprop *next;
 		/*
@@ -54,6 +55,11 @@ void vobject_set_priv(struct vobject *vc, void *dat)
 void *vobject_get_priv(struct vobject *vc)
 {
 	return vc->priv;
+}
+
+const char *vobject_type(struct vobject *vc)
+{
+	return vc->type;
 }
 
 /* vprop walk function */
@@ -161,6 +167,8 @@ void vobject_free(struct vobject *vc)
 		/* remove */
 		free(saved);
 	}
+	if (vc->type)
+		free(vc->type);
 	free(vc);
 }
 
@@ -209,14 +217,16 @@ struct vobject *vobject_next(FILE *fp, int *linenr)
 			*saved = 0;
 		}
 		/* fresh line, new property */
-		if (!strcasecmp(line, "BEGIN:VCARD")) {
+		if (!strncasecmp(line, "BEGIN:", 6)) {
 			if (vc)
 				error(1, 0, "nested BEGIN on line %u", *linenr);
 			/* create VCard */
 			vc = zalloc(sizeof(*vc));
+			vc->type = strdup(line+6);
 			/* don't add this line */
 			continue;
-		} else if (vc && !strcasecmp(line, "END:VCARD"))
+		} else if (vc && !strncasecmp(line, "END:", 4) &&
+				!strcasecmp(line+4, vc->type))
 			break;
 		/* save line, we only know that a line finished on next line */
 		if (savedsize < ret+1) {
@@ -265,7 +275,7 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 	const char *meta;
 	size_t linesize = 0, fill, pos, todo;
 
-	fputs("BEGIN:VCARD\n", fp);
+	fprintf(fp, "BEGIN:%s\n", vc->type);
 	++nlines;
 
 	/* iterate over all properties */
@@ -290,7 +300,7 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 	}
 
 	/* terminate vobject */
-	fputs("END:VCARD\n", fp);
+	fprintf(fp, "END:%s\n", vc->type);
 	++nlines;
 	return nlines;
 }

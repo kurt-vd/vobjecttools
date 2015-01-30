@@ -14,6 +14,8 @@ struct vprop;
 extern void vobject_set_priv(struct vobject *vc, void *dat);
 extern void *vobject_get_priv(struct vobject *vc);
 
+/* access the type (VCALENDAR, VCARD, VEVENT, ... ) */
+extern const char *vobject_type(struct vobject *vc);
 /*
  * vprop walk functions
  * vobject_props() retrieves the first property
