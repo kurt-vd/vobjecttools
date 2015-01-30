@@ -30,6 +30,18 @@ extern const char *vprop_value(struct vprop *vp);
 /* walk through vprop meta data (start with @str == NULL) */
 extern const char *vprop_next_meta(struct vprop *vp, const char *str);
 
+/* control hierarchy:
+ *
+ * vobject_first returns the first child vobject of a parent
+ * vobject_next returns the next sibling of a child
+ */
+extern struct vobject *vobject_first_child(const struct vobject *parent);
+extern struct vobject *vobject_next_child(const struct vobject *prevchild);
+
+/* manually attach/detach a child to/from a parent */
+extern void vobject_attach(struct vobject *obj, struct vobject *parent);
+extern void vobject_detach(struct vobject *vo);
+
 /*
  * Immediate lookup functions
  * Only the first property of equally named properties is accessible

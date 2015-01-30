@@ -42,6 +42,9 @@ struct vobject {
 		 * */
 		char key[8];
 	} *props, *last;
+	/* hierarchy */
+	struct vobject *next;
+	struct vobject *list, *listlast, *parent;
 	/* members to be used by application */
 	void *priv;
 };
@@ -170,6 +173,47 @@ static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
 	return vp;
 }
 
+/* vobject hierarchy */
+void vobject_detach(struct vobject *vo)
+{
+	struct vobject **pvo, *saved = NULL;
+
+	if (!vo->parent)
+		return;
+	for (pvo = &vo->parent->list; *pvo; pvo = &(*pvo)->next) {
+		if (*pvo == vo) {
+			*pvo = vo->next;
+			break;
+		} else
+			saved = *pvo;
+	}
+	if (vo->parent->listlast == vo)
+		vo->parent->listlast = saved;
+	vo->next = vo->parent = NULL;
+}
+
+void vobject_attach(struct vobject *obj, struct vobject *parent)
+{
+	vobject_detach(obj);
+
+	if (parent->listlast)
+		parent->listlast->next = obj;
+	else
+		parent->list = obj;
+	parent->listlast = obj;
+	obj->parent = parent;
+}
+
+struct vobject *vobject_first_child(const struct vobject *vo)
+{
+	return vo ? vo->list : NULL;
+}
+
+struct vobject *vobject_next_child(const struct vobject *vo)
+{
+	return vo ? vo->next : NULL;
+}
+
 /* free a vobject */
 void vobject_free(struct vobject *vc)
 {
@@ -233,16 +277,23 @@ struct vobject *vobject_next(FILE *fp, int *linenr)
 		}
 		/* fresh line, new property */
 		if (!strncasecmp(line, "BEGIN:", 6)) {
-			if (vc)
-				error(1, 0, "nested BEGIN on line %u", *linenr);
-			/* create VCard */
+			struct vobject *parent = vc;
+
+			/* create new/child VCard */
 			vc = zalloc(sizeof(*vc));
 			vc->type = strdup(line+6);
+			if (parent)
+				vobject_attach(vc, parent);
 			/* don't add this line */
 			continue;
 		} else if (vc && !strncasecmp(line, "END:", 4) &&
-				!strcasecmp(line+4, vc->type))
-			break;
+				!strcasecmp(line+4, vc->type)) {
+			if (!vc->parent)
+				/* end this vobject */
+				break;
+			vc = vc->parent;
+			continue;
+		}
 		/* save line, we only know that a line finished on next line */
 		if (savedsize < ret+1) {
 			savedsize = (ret + 1 + 63) & ~63;
@@ -289,6 +340,7 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 	char *line = NULL;
 	const char *meta;
 	size_t linesize = 0, fill, pos, todo;
+	const struct vobject *child;
 
 	fprintf(fp, "BEGIN:%s\n", vc->type);
 	++nlines;
@@ -313,6 +365,10 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 			++nlines;
 		}
 	}
+
+	/* write child objects */
+	for (child = vobject_first_child(vc); child; child = vobject_next_child(child))
+		nlines += vobject_write(child, fp);
 
 	/* terminate vobject */
 	fprintf(fp, "END:%s\n", vc->type);
