@@ -213,16 +213,16 @@ static int browse_prop(const char *propname)
 }
 
 /* print indented result */
-void vcard_indent_result(struct vcard *vc, const char *lookfor, long bitmask)
+void vcard_indent_result(struct vobject *vc, const char *lookfor, long bitmask)
 {
 	const char *meta;
 	struct vprop *vp;
 	int nprop = 0, nvec, j;
 	char *vec[16];
 
-	printf("%s\n", vcard_prop(vc, "FN") ?: "<no name>");
+	printf("%s\n", vobject_prop(vc, "FN") ?: "<no name>");
 
-	for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
+	for (vp = vobject_props(vc); vp; vp = vprop_next(vp)) {
 		if (!browse && strcasecmp(lookfor, vprop_name(vp)))
 			continue;
 		if (!browse && !(bitmask & (1L << nprop++)))
@@ -273,7 +273,7 @@ void vcard_indent_result(struct vcard *vc, const char *lookfor, long bitmask)
 	}
 }
 
-void vcard_add_result(struct vcard *vc, const char *lookfor, long bitmask)
+void vcard_add_result(struct vobject *vc, const char *lookfor, long bitmask)
 {
 	const char *name, *meta;
 	struct vprop *vp;
@@ -284,9 +284,9 @@ void vcard_add_result(struct vcard *vc, const char *lookfor, long bitmask)
 		return;
 	}
 
-	name = vcard_prop(vc, "FN") ?: "<no name>";
+	name = vobject_prop(vc, "FN") ?: "<no name>";
 
-	for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
+	for (vp = vobject_props(vc); vp; vp = vprop_next(vp)) {
 		if (strcasecmp(lookfor, vprop_name(vp)))
 			continue;
 		if (!(bitmask & (1L << nprop++)))
@@ -323,20 +323,20 @@ static const char *searchable_telnr(const char *str)
 /* real filter program */
 int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 {
-	struct vcard *vc;
+	struct vobject *vc;
 	struct vprop *vp;
 	int linenr = 0, ncards = 0, nprop, propcnt;
 	long bitmask;
 	const char *propname, *propval;
 
 	while (1) {
-		vc = vcard_next(fp, &linenr);
+		vc = vobject_next(fp, &linenr);
 		if (!vc)
 			break;
 		nprop = 0;
 		propcnt = 0;
 		bitmask = 0;
-		for (vp = vcard_props(vc); vp; vp = vprop_next(vp)) {
+		for (vp = vobject_props(vc); vp; vp = vprop_next(vp)) {
 			/* match in name */
 			propname = vprop_name(vp);
 			if (!strcasecmp(propname, "FN")) {
@@ -358,7 +358,7 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 		}
 		if (bitmask && propcnt)
 			vcard_add_result(vc, lookfor, bitmask);
-		vcard_free(vc);
+		vobject_free(vc);
 	}
 	return ncards;
 }

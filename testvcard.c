@@ -26,11 +26,11 @@
 
 #include "vcard.h"
 
-#define NAME "testvcard"
+#define NAME "testvobject"
 
 /* program options */
 static const char help_msg[] =
-	NAME ": read+write vcard files\n"
+	NAME ": read+write vobject files\n"
 	"usage:	" NAME " [INPUT [OUTPUT]]\n"
 	"\n"
 	"Options\n"
@@ -58,7 +58,7 @@ static int verbose;
 int main(int argc, char *argv[])
 {
 	int ret, opt, linenr = 0;
-	struct vcard *vc;
+	struct vobject *vc;
 
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
@@ -98,11 +98,11 @@ int main(int argc, char *argv[])
 	}
 
 	while (1) {
-		vc = vcard_next(stdin, &linenr);
+		vc = vobject_next(stdin, &linenr);
 		if (!vc)
 			break;
-		vcard_write(vc, stdout);
-		vcard_free(vc);
+		vobject_write(vc, stdout);
+		vobject_free(vc);
 	}
 	/* emit results to stdout */
 	return 0;

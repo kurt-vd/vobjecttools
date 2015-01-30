@@ -21,8 +21,8 @@ static void *zalloc(unsigned int size)
 	return ptr;
 }
 
-/* vcard parser struct */
-struct vcard {
+/* vobject parser struct */
+struct vobject {
 	struct vprop {
 		struct vprop *next;
 		/*
@@ -46,18 +46,18 @@ struct vcard {
 };
 
 /* access the application private member */
-void vcard_set_priv(struct vcard *vc, void *dat)
+void vobject_set_priv(struct vobject *vc, void *dat)
 {
 	vc->priv = dat;
 }
 
-void *vcard_get_priv(struct vcard *vc)
+void *vobject_get_priv(struct vobject *vc)
 {
 	return vc->priv;
 }
 
 /* vprop walk function */
-struct vprop *vcard_props(struct vcard *vc)
+struct vprop *vobject_props(struct vobject *vc)
 {
 	return vc->props;
 }
@@ -97,7 +97,7 @@ const char *vprop_next_meta(struct vprop *vp, const char *str)
 	 * This will burn cpu cycles only when & each time that
 	 * the metadata is requested.
 	 * I considered that most flows will only come here when
-	 * a decision to use this vcard has already been made.
+	 * a decision to use this vobject has already been made.
 	 */
 	if (!str)
 		return locase(vp->meta);
@@ -109,7 +109,7 @@ const char *vprop_next_meta(struct vprop *vp, const char *str)
 }
 
 /* fast access functions */
-const char *vcard_prop(struct vcard *vc, const char *propname)
+const char *vobject_prop(struct vobject *vc, const char *propname)
 {
 	struct vprop *vp;
 
@@ -120,7 +120,7 @@ const char *vcard_prop(struct vcard *vc, const char *propname)
 	return NULL;
 }
 
-static struct vprop *vcard_append_line(struct vcard *vc, const char *line)
+static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
 {
 	struct vprop *vp;
 	char *str;
@@ -149,8 +149,8 @@ static struct vprop *vcard_append_line(struct vcard *vc, const char *line)
 	return vp;
 }
 
-/* free a vcard */
-void vcard_free(struct vcard *vc)
+/* free a vobject */
+void vobject_free(struct vobject *vc)
 {
 	struct vprop *vp, *saved;
 
@@ -164,13 +164,13 @@ void vcard_free(struct vcard *vc)
 	free(vc);
 }
 
-/* read next vcard from file */
-struct vcard *vcard_next(FILE *fp, int *linenr)
+/* read next vobject from file */
+struct vobject *vobject_next(FILE *fp, int *linenr)
 {
 	char *line = NULL, *saved = NULL;
 	size_t linesize = 0, savedsize = 0, savedlen = 0;
 	int ret, mylinenr = 0;
-	struct vcard *vc = NULL;
+	struct vobject *vc = NULL;
 
 	if (!linenr)
 		linenr = &mylinenr;
@@ -203,7 +203,7 @@ struct vcard *vcard_next(FILE *fp, int *linenr)
 		if (saved && *saved) {
 			/* append property */
 			if (vc)
-				vcard_append_line(vc, saved);
+				vobject_append_line(vc, saved);
 			/* erase saved stuff */
 			savedlen = 0;
 			*saved = 0;
@@ -256,8 +256,8 @@ static int appendprintf(char **pline, size_t *psize, size_t pos, const char *fmt
 	return len;
 }
 
-/* output vcards, returns the number of ascii lines */
-int vcard_write(const struct vcard *vc, FILE *fp)
+/* output vobjects, returns the number of ascii lines */
+int vobject_write(const struct vobject *vc, FILE *fp)
 {
 	int nlines = 0;
 	struct vprop *vp;
@@ -289,7 +289,7 @@ int vcard_write(const struct vcard *vc, FILE *fp)
 		}
 	}
 
-	/* terminate vcard */
+	/* terminate vobject */
 	fputs("END:VCARD\n", fp);
 	++nlines;
 	return nlines;
