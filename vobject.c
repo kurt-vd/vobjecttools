@@ -144,6 +144,26 @@ const char *vobject_prop(const struct vobject *vc, const char *propname)
 	return NULL;
 }
 
+const char *vprop_meta(const struct vprop *prop, const char *metaname)
+{
+	const char *meta;
+	int needlelen;
+
+	needlelen = strlen(metaname);
+
+	for (meta = vprop_next_meta(prop, NULL); meta; meta = vprop_next_meta(prop, meta)) {
+		if (!strncasecmp(metaname, meta, needlelen)) {
+			if (meta[needlelen] == '=')
+				return meta+needlelen+1;
+			else if (!meta[needlelen])
+				/* no value assigned */
+				return "";
+			/* no fixed match, keep looking */
+		}
+	}
+	return NULL;
+}
+
 static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
 {
 	struct vprop *vp;

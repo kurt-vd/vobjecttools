@@ -49,6 +49,16 @@ extern void vobject_detach(struct vobject *vo);
  */
 extern const char *vobject_prop(const struct vobject *vc, const char *propname);
 
+/*
+ * Lookup metadata immediate
+ *
+ * Returns
+ * - the value when present
+ * - an empty string when metadata found without value
+ * - NULL when not found
+ */
+extern const char *vprop_meta(const struct vprop *prop, const char *metaname);
+
 /* read next vobject from file */
 extern struct vobject *vobject_next(FILE *fp, int *linenr);
 
