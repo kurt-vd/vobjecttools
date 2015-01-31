@@ -20,12 +20,22 @@
 #include <errno.h>
 
 #include <unistd.h>
-#include <error.h>
 #include <getopt.h>
 
 #include "vobject.h"
 
 #define NAME "vcardquery"
+
+/* generic error logging */
+#define elog(exitcode, errnum, fmt, ...) \
+	{\
+		fprintf(stderr, "%s: " fmt "\n", NAME, ##__VA_ARGS__);\
+		if (errnum)\
+			fprintf(stderr, "\t: %s\n", strerror(errnum));\
+		if (exitcode)\
+			exit(exitcode);\
+		fflush(stderr);\
+	}
 
 /* program options */
 static const char help_msg[] =
@@ -106,7 +116,7 @@ static int parse_config(const char *filename)
 	fp = myfopen(filename, "r");
 	if (!fp) {
 		if (verbose)
-			error(0, errno, "fopen %s", filename);
+			elog(0, errno, "fopen %s", filename);
 		return 0;
 	}
 
@@ -129,7 +139,7 @@ static int parse_config(const char *filename)
 			}
 			files[nfiles++] = strdup(strtok(NULL, " \t\r\n\v\f"));
 		} else if (verbose)
-			error(0, 0, "unknown config option '%s' in %s:%lu", tok,
+			elog(0, 0, "unknown config option '%s' in %s:%lu", tok,
 					filename, linenr);
 	}
 	fclose(fp);
@@ -417,7 +427,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (browse && !indented)
-		error(1, 0, "browseable mode is only implemented for indented output");
+		elog(1, 0, "browseable mode is only implemented for indented output");
 
 	if (optind >= argc) {
 		fprintf(stderr, "no search string");
@@ -435,7 +445,7 @@ int main(int argc, char *argv[])
 	for (; argv[optind]; ++optind) {
 		fp = myfopen(argv[optind], "r");
 		if (!fp)
-			error(1, errno, "fopen %s", argv[optind]);
+			elog(1, errno, "fopen %s", argv[optind]);
 		if (verbose)
 			printf("## %s\n", argv[optind]);
 		vcard_filter(fp, needle, lookfor);
@@ -444,7 +454,7 @@ int main(int argc, char *argv[])
 	for (j = 0; j < nfiles; ++j) {
 		fp = myfopen(files[j], "r");
 		if (!fp)
-			error(1, errno, "fopen %s", files[j]);
+			elog(1, errno, "fopen %s", files[j]);
 		if (verbose)
 			printf("## %s\n", files[j]);
 		vcard_filter(fp, needle, lookfor);
