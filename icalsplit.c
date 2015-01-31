@@ -87,6 +87,44 @@ static FILE *myfopen(const char *filename, const char *mode)
 		return fopen(filename, mode);
 }
 
+static void copy_timezones(const struct vobject *dut, struct vobject *root,
+		const struct vobject *origroot)
+{
+	const struct vprop *vprop;
+	const char *tzstr;
+
+	const struct vobject *tz;
+
+	for (vprop = vobject_props(dut); vprop; vprop = vprop_next(vprop)) {
+		tzstr = vprop_meta(vprop, "tzid");
+		if (!tzstr)
+			continue;
+
+		/* look for VTIMEZONE @tzstr */
+		for (tz = vobject_first_child(root); tz; tz = vobject_next_child(tz)) {
+			if (strcasecmp("VTIMEZONE", vobject_type(tz)))
+				continue;
+			if (!strcmp(vobject_prop(tz, "tzid") ?: "", tzstr))
+				/* VTIMEZONE already present */
+				break;
+		}
+		if (tz)
+			continue;
+		/* find the timezone in original vobject */
+		for (tz = vobject_first_child(origroot); tz; tz = vobject_next_child(tz)) {
+			if (strcasecmp("VTIMEZONE", vobject_type(tz)))
+				continue;
+			if (!strcmp(vobject_prop(tz, "tzid") ?: "", tzstr)) {
+				/* append timezone */
+				vobject_attach(vobject_dup(tz), root);
+				break;
+			}
+		}
+		if (!tz)
+			elog(0, 0, "Timezone '%s' not found", tzstr);
+	}
+
+}
 /* real split program */
 void icalsplit(FILE *fp, const char *name)
 {
@@ -109,6 +147,7 @@ void icalsplit(FILE *fp, const char *name)
 				continue;
 			newroot = vobject_dup_root(root);
 			newsub = vobject_dup(sub);
+			copy_timezones(newsub, newroot, root);
 			vobject_attach(newsub, newroot);
 			/* todo : timezones */
 			vobject_write(newroot, stdout);
