@@ -12,23 +12,23 @@ struct vprop;
 
 /* access the application private member */
 extern void vobject_set_priv(struct vobject *vc, void *dat);
-extern void *vobject_get_priv(struct vobject *vc);
+extern void *vobject_get_priv(const struct vobject *vc);
 
 /* access the type (VCALENDAR, VCARD, VEVENT, ... ) */
-extern const char *vobject_type(struct vobject *vc);
+extern const char *vobject_type(const struct vobject *vc);
 /*
  * vprop walk functions
  * vobject_props() retrieves the first property
  * vprop_next() retrieves subsequent ones
  */
-extern struct vprop *vobject_props(struct vobject *vc);
-extern struct vprop *vprop_next(struct vprop *vp);
+extern struct vprop *vobject_props(const struct vobject *vc);
+extern struct vprop *vprop_next(const struct vprop *vp);
 
 /* access the vprop attributes */
-extern const char *vprop_name(struct vprop *vp);
-extern const char *vprop_value(struct vprop *vp);
+extern const char *vprop_name(const struct vprop *vp);
+extern const char *vprop_value(const struct vprop *vp);
 /* walk through vprop meta data (start with @str == NULL) */
-extern const char *vprop_next_meta(struct vprop *vp, const char *str);
+extern const char *vprop_next_meta(const struct vprop *vp, const char *str);
 
 /* control hierarchy:
  *
@@ -47,7 +47,7 @@ extern void vobject_detach(struct vobject *vo);
  * Only the first property of equally named properties is accessible
  * Only the value is accessible
  */
-extern const char *vobject_prop(struct vobject *vc, const char *propname);
+extern const char *vobject_prop(const struct vobject *vc, const char *propname);
 
 /* read next vobject from file */
 extern struct vobject *vobject_next(FILE *fp, int *linenr);

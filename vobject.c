@@ -55,34 +55,34 @@ void vobject_set_priv(struct vobject *vc, void *dat)
 	vc->priv = dat;
 }
 
-void *vobject_get_priv(struct vobject *vc)
+void *vobject_get_priv(const struct vobject *vc)
 {
 	return vc->priv;
 }
 
-const char *vobject_type(struct vobject *vc)
+const char *vobject_type(const struct vobject *vc)
 {
 	return vc->type;
 }
 
 /* vprop walk function */
-struct vprop *vobject_props(struct vobject *vc)
+struct vprop *vobject_props(const struct vobject *vc)
 {
 	return vc->props;
 }
 
-struct vprop *vprop_next(struct vprop *vp)
+struct vprop *vprop_next(const struct vprop *vp)
 {
 	return vp->next;
 }
 
 /* access vprop attributes */
-const char *vprop_name(struct vprop *vp)
+const char *vprop_name(const struct vprop *vp)
 {
 	return vp->key;
 }
 
-const char *vprop_value(struct vprop *vp)
+const char *vprop_value(const struct vprop *vp)
 {
 	return vp->value;
 }
@@ -114,7 +114,7 @@ const char *lowercase(const char *str)
 }
 
 /* walk through vprop meta data */
-const char *vprop_next_meta(struct vprop *vp, const char *str)
+const char *vprop_next_meta(const struct vprop *vp, const char *str)
 {
 	/*
 	 * Avoid CAPITALIZED metadata
@@ -133,7 +133,7 @@ const char *vprop_next_meta(struct vprop *vp, const char *str)
 }
 
 /* fast access functions */
-const char *vobject_prop(struct vobject *vc, const char *propname)
+const char *vobject_prop(const struct vobject *vc, const char *propname)
 {
 	struct vprop *vp;
 
