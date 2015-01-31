@@ -4,6 +4,7 @@
 # output binaries
 vcardquery
 testvcard
+icalsplit
 
 # build configuration
 config.mk

@@ -1,4 +1,4 @@
-PROGRAMS = vcardquery testvcard
+PROGRAMS = vcardquery testvcard icalsplit
 default: $(PROGRAMS)
 
 LOCALVERSION	:= $(shell ./getlocalversion .)
@@ -13,6 +13,7 @@ CPPFLAGS+= -DVERSION="\"$(LOCALVERSION)\""
 
 vcardquery: vobject.o
 testvcard: vobject.o
+icalsplit: vobject.o
 
 install: $(PROGRAMS)
 	install -vs -t $(DESTDIR)$(PREFIX)/bin/ $(PROGRAMS)
