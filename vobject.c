@@ -375,3 +375,45 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 	++nlines;
 	return nlines;
 }
+
+struct vobject *vobject_dup_root(const struct vobject *src)
+{
+	struct vobject *dst;
+	struct vprop *vp;
+	const struct vprop *prop;
+	int linelen;
+
+	dst = zalloc(sizeof(*dst));
+	dst->type = strdup(src->type);
+
+	for (prop = vobject_props(src); prop; prop = vprop_next(prop)) {
+		linelen = (prop->value - prop->key) + strlen(prop->value ?: "");
+		/* duplicate memory */
+		vp = zalloc(sizeof(*vp) + linelen+2);
+		memcpy(vp->key, prop->key, linelen+2);
+		/* set value & meta properly */
+		if (prop->value)
+			vp->value = vp->key + (prop->value - prop->key);
+		if (prop->meta)
+			vp->meta = vp->key + (prop->meta - prop->key);
+		/* append in linked list */
+		if (dst->last)
+			dst->last->next = vp;
+		else
+			dst->props = vp;
+		dst->last = vp;
+	}
+	return dst;
+}
+
+struct vobject *vobject_dup(const struct vobject *src)
+{
+	struct vobject *dst, *sub;
+
+	dst = vobject_dup_root(src);
+	for (src = vobject_first_child(src); src; src = vobject_next_child(src)) {
+		sub = vobject_dup(src);
+		vobject_attach(sub, dst);
+	}
+	return dst;
+}

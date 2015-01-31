@@ -58,6 +58,11 @@ extern int vobject_write(const struct vobject *vc, FILE *fp);
 /* free a vobject */
 extern void vobject_free(struct vobject *vc);
 
+/* duplication */
+extern struct vobject *vobject_dup(const struct vobject *vobj);
+/* duplicate, without recursion */
+extern struct vobject *vobject_dup_root(const struct vobject *vobj);
+
 /* create lowercase copy (cached) of a string */
 extern const char *lowercase(const char *str);
 
