@@ -87,6 +87,24 @@ static FILE *myfopen(const char *filename, const char *mode)
 		return fopen(filename, mode);
 }
 
+/* write vobject to a unique filename */
+static void myvobject_write(const struct vobject *vo)
+{
+	int fd;
+	FILE *fp;
+	char filename[] = "XXXXXX";
+
+	fd = mkstemp(filename);
+	if (fd < 0)
+		elog(1, errno, "mkstmp %s", filename);
+	fp = fdopen(fd, "w");
+	if (!fp)
+		elog(1, errno, "fdopen %s", filename);
+	vobject_write(vo, fp);
+	fclose(fp);
+	close(fd);
+}
+
 static void copy_timezones(const struct vobject *dut, struct vobject *root,
 		const struct vobject *origroot)
 {
@@ -150,7 +168,7 @@ void icalsplit(FILE *fp, const char *name)
 			copy_timezones(newsub, newroot, root);
 			vobject_attach(newsub, newroot);
 			/* todo : timezones */
-			vobject_write(newroot, stdout);
+			myvobject_write(newroot);
 			vobject_free(newroot);
 		}
 		vobject_free(root);
