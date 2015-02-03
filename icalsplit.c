@@ -116,7 +116,7 @@ static void myvobject_write(const struct vobject *vo)
 
 	if (outputfile) {
 		/* output to single file, dup2'd to stdout */
-		vobject_write2(vo, stdout, columns);
+		vobject_write2(vo, stdout, testflag(O_BREAK) ? 80 : 0);
 		return;
 	}
 	fd = mkstemp(filename);
