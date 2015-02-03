@@ -1,4 +1,4 @@
-PROGRAMS = vcardquery icalsplit
+PROGRAMS = vcardquery votool
 default: $(PROGRAMS)
 
 LOCALVERSION	:= $(shell ./getlocalversion .)
@@ -12,7 +12,7 @@ CPPFLAGS= -D_GNU_SOURCE
 CPPFLAGS+= -DVERSION="\"$(LOCALVERSION)\""
 
 vcardquery: vobject.o
-icalsplit: vobject.o
+votool: vobject.o
 
 install: $(PROGRAMS)
 	install -vs -t $(DESTDIR)$(PREFIX)/bin/ $(PROGRAMS)

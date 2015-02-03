@@ -26,7 +26,7 @@
 
 #include "vobject.h"
 
-#define NAME "vobjecttool"
+#define NAME "votool"
 
 /* generic error logging */
 #define elog(exitcode, errnum, fmt, ...) \

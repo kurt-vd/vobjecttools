@@ -3,7 +3,7 @@
 
 # output binaries
 vcardquery
-icalsplit
+votool
 
 # build configuration
 config.mk
