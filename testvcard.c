@@ -20,7 +20,6 @@
 #include <errno.h>
 
 #include <unistd.h>
-#include <error.h>
 #include <getopt.h>
 #include <fcntl.h>
 
@@ -84,7 +83,7 @@ int main(int argc, char *argv[])
 	if (optind < argc) {
 		ret = open(argv[optind], O_RDONLY);
 		if (ret < 0)
-			error(1, errno, "open %s", argv[optind]);
+			fprintf(stderr, "%s: open %s: %s\n", NAME, argv[optind], strerror(errno));
 		dup2(ret, STDIN_FILENO);
 		close(ret);
 		++optind;
@@ -92,7 +91,7 @@ int main(int argc, char *argv[])
 	if (optind < argc) {
 		ret = open(argv[optind], O_WRONLY | O_CREAT | O_TRUNC, 0666);
 		if (ret < 0)
-			error(1, errno, "open %s", argv[optind]);
+			fprintf(stderr, "%s: open %s: %s\n", NAME, argv[optind], strerror(errno));
 		dup2(ret, STDOUT_FILENO);
 		++optind;
 	}
