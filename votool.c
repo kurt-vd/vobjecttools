@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
 	if (action && !strcmp("split", action)) {
 		if (!argv)
 			/* avoid creating output */
-			return 0;
+			elog(1, 0, "no input files");
 		redirect_output();
 		/* filter from file(s) */
 		for (; *argv; ++argv) {
@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
 		int linenr = 0;
 
 		if (!argv)
-			return 0;
+			elog(1, 0, "no input files");
 		redirect_output();
 		for (; *argv; ++argv) {
 			fp = myfopen(*argv, "r");
