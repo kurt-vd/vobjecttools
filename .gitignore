@@ -3,7 +3,6 @@
 
 # output binaries
 vcardquery
-testvcard
 icalsplit
 
 # build configuration

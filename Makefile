@@ -1,4 +1,4 @@
-PROGRAMS = vcardquery testvcard icalsplit
+PROGRAMS = vcardquery icalsplit
 default: $(PROGRAMS)
 
 LOCALVERSION	:= $(shell ./getlocalversion .)
@@ -12,7 +12,6 @@ CPPFLAGS= -D_GNU_SOURCE
 CPPFLAGS+= -DVERSION="\"$(LOCALVERSION)\""
 
 vcardquery: vobject.o
-testvcard: vobject.o
 icalsplit: vobject.o
 
 install: $(PROGRAMS)

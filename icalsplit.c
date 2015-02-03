@@ -26,7 +26,7 @@
 
 #include "vobject.h"
 
-#define NAME "icalsplit"
+#define NAME "vobjecttool"
 
 /* generic error logging */
 #define elog(exitcode, errnum, fmt, ...) \
@@ -42,11 +42,14 @@
 /* program options */
 static const char help_msg[] =
 	NAME ": split ical/vcard into files with 1 single element\n"
-	"usage:	" NAME " [OPTIONS ...] [FILE ...]\n"
+	"usage:	" NAME " -a ACTION [OPTIONS ...] [FILE ...]\n"
 	"\n"
 	"Options\n"
 	" -V, --version		Show version\n"
 	" -v, --verbose		Verbose output\n"
+	" -a, --action=ACTION	Perform action, one of:\n"
+	"	* cat		Read & write to stdout\n"
+	"	- split		Split VCalendar's so each contains only 1 VEVENT\n"
 	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
 	"	* break		Break lines on 80 columns\n"
 	" -O, --output=FILE	Output all vobjects to FILE\n"
@@ -69,6 +72,7 @@ static struct option long_opts[] = {
 	{ "version", no_argument, NULL, 'V', },
 	{ "verbose", no_argument, NULL, 'v', },
 
+	{ "action", required_argument, NULL, 'a', },
 	{ "options", required_argument, NULL, 'o', },
 	{ "output", required_argument, NULL, 'O', },
 
@@ -78,10 +82,11 @@ static struct option long_opts[] = {
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?o:O:";
+static const char optstring[] = "Vv?a:o:O:";
 
 /* program variables */
 static int verbose;
+static const char *action;
 static int flags = 1 << O_BREAK;
 static char *outputfile;
 
@@ -107,6 +112,20 @@ static FILE *myfopen(const char *filename, const char *mode)
 		return fopen(filename, mode);
 }
 
+static void redirect_output(void)
+{
+	if (outputfile && strcmp("-", outputfile)) {
+		int fd;
+
+		fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+		if (fd < 0)
+			elog(1, errno, "open %s", outputfile);
+		if (dup2(fd, STDOUT_FILENO) < 0)
+			elog(1, errno, "dup2 %s", outputfile);
+		close(fd);
+	}
+}
+
 /* write vobject to a unique filename */
 static void myvobject_write(const struct vobject *vo)
 {
@@ -130,6 +149,9 @@ static void myvobject_write(const struct vobject *vo)
 	close(fd);
 }
 
+/*
+ * SPLIT
+ */
 static void copy_timezones(const struct vobject *dut, struct vobject *root,
 		const struct vobject *origroot)
 {
@@ -217,6 +239,10 @@ int main(int argc, char *argv[])
 	case 'v':
 		++verbose;
 		break;
+	case 'a':
+		action = optarg;
+		break;
+
 	case 'o':
 		subopts = optarg;
 		while (*subopts) {
@@ -251,30 +277,55 @@ int main(int argc, char *argv[])
 		break;
 	}
 
-	if (outputfile && strcmp("-", outputfile)) {
-		int fd;
+	/* prepare arguments */
+	argv += optind;
+	if (!*argv)
+		argv = NULL;
 
-		fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-		if (fd < 0)
-			elog(1, errno, "open %s", outputfile);
-		if (dup2(fd, STDOUT_FILENO) < 0)
-			elog(1, errno, "dup2 %s", outputfile);
-		close(fd);
+	/* differentiate */
+	if (action && !strcmp("split", action)) {
+		if (!argv)
+			/* avoid creating output */
+			return 0;
+		redirect_output();
+		/* filter from file(s) */
+		for (; *argv; ++argv) {
+			fp = myfopen(*argv, "r");
+			if (!fp)
+				elog(1, errno, "fopen %s", *argv);
+			if (verbose)
+				printf("## %s\n", *argv);
+			icalsplit(fp, basename(*argv));
+			fclose(fp);
+		}
+		return 0;
+	} else if (action && !strcmp("cat", action)) {
+		struct vobject * vc;
+		int linenr = 0;
+
+		if (!argv)
+			return 0;
+		redirect_output();
+		for (; *argv; ++argv) {
+			fp = myfopen(*argv, "r");
+			if (!fp)
+				elog(1, errno, "fopen %s", *argv);
+			if (verbose)
+				printf("## %s\n", *argv);
+			while (1) {
+				vc = vobject_next(fp, &linenr);
+				if (!vc)
+					break;
+				vobject_write(vc, stdout);
+				vobject_free(vc);
+			}
+			fclose(fp);
+		}
+		return 0;
 	}
 
-	/* filter from file(s) */
-	if (argv[optind])
-	for (; argv[optind]; ++optind) {
-		fp = myfopen(argv[optind], "r");
-		if (!fp)
-			elog(1, errno, "fopen %s", argv[optind]);
-		if (verbose)
-			printf("## %s\n", argv[optind]);
-		icalsplit(fp, basename(argv[optind]));
-		fclose(fp);
-	} else
-		icalsplit(stdin, "stdin");
-	/* emit results to stdout */
-	return 0;
+	fprintf(stderr, "unknown action '%s'\n", action ?: "<>");
+	fputs(help_msg, stderr);
+	exit(1);
 }
 
