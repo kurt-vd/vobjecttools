@@ -46,6 +46,9 @@ static const char help_msg[] =
 	"Options\n"
 	" -V, --version		Show version\n"
 	" -v, --verbose		Verbose output\n"
+	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
+	"	columns=NUM	Set #columns to use, default 80 per spec\n"
+	"	* break		Break lines on 80 columns\n"
 
 	"\n"
 	"Arguments\n"
@@ -53,11 +56,19 @@ static const char help_msg[] =
 	"		No files means 'stdin only'\n"
 	;
 
+static char *const subopttable[] = {
+	"break",
+#define O_BREAK	0
+	0,
+};
+
 #ifdef _GNU_SOURCE
 static struct option long_opts[] = {
 	{ "help", no_argument, NULL, '?', },
 	{ "version", no_argument, NULL, 'V', },
 	{ "verbose", no_argument, NULL, 'v', },
+
+	{ "options", required_argument, NULL, 'o', },
 
 	{ },
 };
@@ -65,10 +76,16 @@ static struct option long_opts[] = {
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?";
+static const char optstring[] = "Vv?o:";
 
 /* program variables */
 static int verbose;
+static int flags = 1 << O_BREAK;
+
+static int testflag(int num)
+{
+	return !!(flags & (1 << num));
+}
 
 /* generic file open method */
 static FILE *myfopen(const char *filename, const char *mode)
@@ -100,7 +117,7 @@ static void myvobject_write(const struct vobject *vo)
 	fp = fdopen(fd, "w");
 	if (!fp)
 		elog(1, errno, "fdopen %s", filename);
-	vobject_write(vo, fp);
+	vobject_write2(vo, fp, testflag(O_BREAK) ? 80 : 0);
 	fclose(fp);
 	close(fd);
 }
@@ -179,6 +196,8 @@ int main(int argc, char *argv[])
 {
 	int opt;
 	FILE *fp;
+	int not;
+	char *subopts;
 
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
@@ -189,6 +208,26 @@ int main(int argc, char *argv[])
 		exit(0);
 	case 'v':
 		++verbose;
+		break;
+	case 'o':
+		subopts = optarg;
+		while (*subopts) {
+			not = !strncmp(subopts, "no", 2);
+			if (not)
+				subopts += 2;
+			opt = getsubopt(&subopts, subopttable, &optarg);
+			if (opt < 0)
+				break;
+			switch (opt) {
+			default:
+				/* make sure O_xxx & FL_xxx correspond */
+				if (not)
+					flags &= ~(1 << opt);
+				else
+					flags |= 1 << opt;
+				break;
+			}
+		}
 		break;
 
 	case '?':
