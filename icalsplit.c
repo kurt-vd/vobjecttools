@@ -20,6 +20,7 @@
 #include <errno.h>
 
 #include <unistd.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <libgen.h>
 
@@ -47,8 +48,8 @@ static const char help_msg[] =
 	" -V, --version		Show version\n"
 	" -v, --verbose		Verbose output\n"
 	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
-	"	columns=NUM	Set #columns to use, default 80 per spec\n"
 	"	* break		Break lines on 80 columns\n"
+	" -O, --output=FILE	Output all vobjects to FILE\n"
 
 	"\n"
 	"Arguments\n"
@@ -69,6 +70,7 @@ static struct option long_opts[] = {
 	{ "verbose", no_argument, NULL, 'v', },
 
 	{ "options", required_argument, NULL, 'o', },
+	{ "output", required_argument, NULL, 'O', },
 
 	{ },
 };
@@ -76,11 +78,12 @@ static struct option long_opts[] = {
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?o:";
+static const char optstring[] = "Vv?o:O:";
 
 /* program variables */
 static int verbose;
 static int flags = 1 << O_BREAK;
+static char *outputfile;
 
 static int testflag(int num)
 {
@@ -111,6 +114,11 @@ static void myvobject_write(const struct vobject *vo)
 	FILE *fp;
 	char filename[] = "XXXXXX";
 
+	if (outputfile) {
+		/* output to single file, dup2'd to stdout */
+		vobject_write2(vo, stdout, columns);
+		return;
+	}
 	fd = mkstemp(filename);
 	if (fd < 0)
 		elog(1, errno, "mkstmp %s", filename);
@@ -173,7 +181,7 @@ void icalsplit(FILE *fp, const char *name)
 			break;
 		if (strcasecmp(vobject_type(root), "VCALENDAR"))
 			/* save single non-calendar element */
-			vobject_write(root, stdout);
+			myvobject_write(root);
 		else for (sub = vobject_first_child(root); sub; sub =
 				vobject_next_child(sub)) {
 			/* save (potentially) each single element */
@@ -229,6 +237,9 @@ int main(int argc, char *argv[])
 			}
 		}
 		break;
+	case 'O':
+		outputfile = optarg;
+		break;
 
 	case '?':
 		fputs(help_msg, stderr);
@@ -238,6 +249,17 @@ int main(int argc, char *argv[])
 		fputs(help_msg, stderr);
 		exit(1);
 		break;
+	}
+
+	if (outputfile && strcmp("-", outputfile)) {
+		int fd;
+
+		fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+		if (fd < 0)
+			elog(1, errno, "open %s", outputfile);
+		if (dup2(fd, STDOUT_FILENO) < 0)
+			elog(1, errno, "dup2 %s", outputfile);
+		close(fd);
 	}
 
 	/* filter from file(s) */
