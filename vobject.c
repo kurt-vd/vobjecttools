@@ -353,7 +353,7 @@ static int appendprintf(char **pline, size_t *psize, size_t pos, const char *fmt
 }
 
 /* output vobjects, returns the number of ascii lines */
-int vobject_write(const struct vobject *vc, FILE *fp)
+int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
 {
 	int nlines = 0;
 	struct vprop *vp;
@@ -373,6 +373,11 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 			fill += appendprintf(&line, &linesize, fill, ";%s", meta);
 		fill += appendprintf(&line, &linesize, fill, ":%s", vp->value);
 
+		if (!columns) {
+			fputs(line, fp);
+			fputc('\n', fp);
+			++nlines;
+		} else
 		for (pos = 0; pos < fill; pos += todo) {
 			todo = pos ? 79 : 80;
 			if (pos + todo > fill)
@@ -388,12 +393,17 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 
 	/* write child objects */
 	for (child = vobject_first_child(vc); child; child = vobject_next_child(child))
-		nlines += vobject_write(child, fp);
+		nlines += vobject_write2(child, fp, columns);
 
 	/* terminate vobject */
 	fprintf(fp, "END:%s\n", vc->type);
 	++nlines;
 	return nlines;
+}
+
+int vobject_write(const struct vobject *vc, FILE *fp)
+{
+	return vobject_write2(vc, fp, 80);
 }
 
 struct vobject *vobject_dup_root(const struct vobject *src)

@@ -64,6 +64,7 @@ extern struct vobject *vobject_next(FILE *fp, int *linenr);
 
 /* write vobjects */
 extern int vobject_write(const struct vobject *vc, FILE *fp);
+extern int vobject_write2(const struct vobject *vc, FILE *fp, int ncolumns);
 
 /* free a vobject */
 extern void vobject_free(struct vobject *vc);
