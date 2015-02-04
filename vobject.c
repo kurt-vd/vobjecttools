@@ -173,6 +173,22 @@ const char *vprop_meta(const struct vprop *prop, const char *metaname)
 	return NULL;
 }
 
+static char *strchresc(const char *str, int c)
+{
+	int esc = 0;
+
+	for (; *str; ++str) {
+		if (esc) {
+			if (*str == esc)
+				esc = 0;
+		} else if (*str == c)
+			return (char *)str;
+		else if (strchr("\"'", *str))
+			esc = *str;
+	}
+	return NULL;
+}
+
 static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
 {
 	struct vprop *vp;
@@ -182,15 +198,15 @@ static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
 	strcpy(vp->key, line);
 
 	/* seperate value from key */
-	vp->value = strchr(vp->key, ':');
+	vp->value = strchresc(vp->key, ':');
 	if (vp->value)
 		*vp->value++ = 0;
 	/* seperate meta from key */
-	vp->meta = strchr(vp->key, ';');
+	vp->meta = strchresc(vp->key, ';');
 	if (vp->meta) {
 		*vp->meta++ = 0;
 		/* insert null terminator */
-		for (str = strchr(vp->meta, ';'); str; str = strchr(str, ';'))
+		for (str = strchresc(vp->meta, ';'); str; str = strchr(str, ';'))
 			*str++ = 0;
 	}
 	/* append in linked list */
