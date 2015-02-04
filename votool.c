@@ -50,6 +50,7 @@ static const char help_msg[] =
 	" -a, --action=ACTION	Perform action, one of:\n"
 	"	* cat		Read & write to stdout\n"
 	"	- split		Split VCalendar's so each contains only 1 VEVENT\n"
+	"	- subject	Return a subject for each vobject\n"
 	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
 	"	* break		Break lines on 80 columns\n"
 	" -O, --output=FILE	Output all vobjects to FILE\n"
@@ -251,6 +252,32 @@ void icalsplit(FILE *fp, const char *name)
 	}
 }
 
+/* retrieve short subject */
+const char *vosubject(const struct vobject *vo)
+{
+	const char *type = vobject_type(vo);
+
+	if (!strcasecmp("vcalendar", type)) {
+		const char *result;
+
+		for (vo = vobject_first_child(vo); vo; vo = vobject_next_child(vo)) {
+			result = vosubject(vo);
+			if (result)
+				return result;
+		}
+		return "vcalendar without subject";
+	} else if (!strcasecmp(type, "vcard"))
+		return vobject_prop(vo, "FN") ?: "vcard without subject";
+	else if (!strcasecmp(type, "vevent"))
+		return vobject_prop(vo, "summary");
+	else if (!strcasecmp(type, "vtodo"))
+		return vobject_prop(vo, "summary");
+	else if (!strcasecmp(type, "vjournal"))
+		return vobject_prop(vo, "summary");
+	else
+		return NULL;
+}
+
 int main(int argc, char *argv[])
 {
 	int opt;
@@ -351,6 +378,27 @@ int main(int argc, char *argv[])
 			fclose(fp);
 		}
 		return 0;
+	} else if (action && !strcmp("subject", action)) {
+		struct vobject *vc;
+		int linenr;
+
+		if (!argv)
+			elog(1, 0, "no input files");
+
+		redirect_output();
+		for (; *argv; ++argv) {
+			fp = myfopen(*argv, "r");
+			if (!fp)
+				elog(1, errno, "fopen %s", *argv);
+			linenr = 0;
+			vc = vobject_next(fp, &linenr);
+			/* only read 1 vobject */
+			fclose(fp);
+			if (!vc)
+				continue;
+			printf("%s\t%s\n", *argv, vosubject(vc));
+			vobject_free(vc);
+		}
 	}
 
 	fprintf(stderr, "unknown action '%s'\n", action ?: "<>");
