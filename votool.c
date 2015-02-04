@@ -126,19 +126,48 @@ static void redirect_output(void)
 	}
 }
 
+static const char *find_prefix(const struct vobject *vo)
+{
+	const char *type = vobject_type(vo), *saved_type;
+
+	if (!strcasecmp(type, "vcard"))
+		return "card";
+	if (!strcasecmp(type, "vevent"))
+		return "evnt";
+	else if (!strcasecmp(type, "vtodo"))
+		return "todo";
+	else if (!strcasecmp(type, "vjournal"))
+		return "jrnl";
+	else if (!strcasecmp(type, "vfreebusy"))
+		return "busy";
+	else if (strcasecmp(type, "vcalendar"))
+		return NULL;
+	/* vcalendar */
+	saved_type = NULL;
+	for (vo = vobject_first_child(vo); vo; vo = vobject_next_child(vo)) {
+		type = find_prefix(vo);
+		if (saved_type && type && strcmp(saved_type, type))
+			/* heterogenous types found */
+			return "cal";
+		saved_type = type ?: saved_type;
+	}
+	return saved_type ?: "cal";
+}
+
 /* write vobject to a unique filename */
 static void myvobject_write(const struct vobject *vo)
 {
 	int fd;
 	FILE *fp;
-	char filename[] = "XXXXXX";
+	char filename[32];
 
 	if (outputfile) {
 		/* output to single file, dup2'd to stdout */
 		vobject_write2(vo, stdout, testflag(O_BREAK) ? 80 : 0);
 		return;
 	}
-	fd = mkstemp(filename);
+	sprintf(filename, "XXXXXX.%s", find_prefix(vo) ?: "ics");
+	fd = mkstemps(filename, strlen(filename)-6);
 	if (fd < 0)
 		elog(1, errno, "mkstmp %s", filename);
 	fp = fdopen(fd, "w");
