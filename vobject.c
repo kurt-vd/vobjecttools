@@ -269,6 +269,9 @@ void vobject_free(struct vobject *vc)
 		/* remove */
 		free(saved);
 	}
+	while (vc->list)
+		vobject_free(vc->list);
+	vobject_detach(vc);
 	if (vc->type)
 		free(vc->type);
 	free(vc);
