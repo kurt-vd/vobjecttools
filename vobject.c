@@ -52,7 +52,7 @@ struct vobject {
 		char key[8];
 	} *props, *last;
 	/* hierarchy */
-	struct vobject *next;
+	struct vobject *next, *prev;
 	struct vobject *list, *listlast, *parent;
 	/* members to be used by application */
 	void *priv;
@@ -221,26 +221,24 @@ static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
 /* vobject hierarchy */
 void vobject_detach(struct vobject *vo)
 {
-	struct vobject **pvo, *saved = NULL;
-
 	if (!vo->parent)
 		return;
-	for (pvo = &vo->parent->list; *pvo; pvo = &(*pvo)->next) {
-		if (*pvo == vo) {
-			*pvo = vo->next;
-			break;
-		} else
-			saved = *pvo;
-	}
+	if (vo->parent->list == vo)
+		vo->parent->list = vo->next;
 	if (vo->parent->listlast == vo)
-		vo->parent->listlast = saved;
-	vo->next = vo->parent = NULL;
+		vo->parent->listlast = vo->prev;
+	if (vo->prev)
+		vo->prev->next = vo->next;
+	if (vo->next)
+		vo->next->prev = vo->prev;
+	vo->next = vo->prev = vo->parent = NULL;
 }
 
 void vobject_attach(struct vobject *obj, struct vobject *parent)
 {
 	vobject_detach(obj);
 
+	obj->prev = parent->listlast;
 	if (parent->listlast)
 		parent->listlast->next = obj;
 	else
