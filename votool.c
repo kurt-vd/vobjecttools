@@ -366,6 +366,7 @@ int main(int argc, char *argv[])
 			fp = myfopen(*argv, "r");
 			if (!fp)
 				elog(1, errno, "fopen %s", *argv);
+			linenr = 0;
 			if (verbose)
 				printf("## %s\n", *argv);
 			while (1) {
