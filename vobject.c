@@ -34,7 +34,9 @@ static void *zalloc(unsigned int size)
 struct vobject {
 	char *type; /* VCALENDAR, VCARD, VEVENT, ... */
 	struct vprop {
-		struct vprop *next;
+		/* IMPORTANT: next & prev must match parents 'props & proplast' */
+		struct vprop *next, *prev;
+		struct vprop *up;
 		/*
 		 * a property is just the copy of the _complete_ line (key)
 		 * value & meta are just pointers to the memory
@@ -50,7 +52,7 @@ struct vobject {
 		 * 8 bytes is more convenient for debugging
 		 * */
 		char key[8];
-	} *props, *last;
+	} *props, *proplast;
 	/* hierarchy */
 	struct vobject *next, *prev;
 	struct vobject *list, *listlast, *parent;
@@ -210,11 +212,12 @@ static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
 			*str++ = 0;
 	}
 	/* append in linked list */
-	if (vc->last)
-		vc->last->next = vp;
+	vp->prev = vc->proplast;
+	if (vc->proplast)
+		vc->proplast->next = vp;
 	else
 		vc->props = vp;
-	vc->last = vp;
+	vc->proplast = vp;
 	return vp;
 }
 
@@ -247,6 +250,39 @@ void vobject_attach(struct vobject *obj, struct vobject *parent)
 	obj->parent = parent;
 }
 
+/* vprop hierarchy */
+void vprop_detach(struct vprop *vp)
+{
+	/* parent level detach
+	 * For this to work properly,
+	 * the struct member layout is important!
+	 */
+	if (vp == vp->up->next)
+		vp->up->next = vp->next;
+	if (vp == vp->up->prev)
+		vp->up->prev = vp->prev;
+	/* linked list detach */
+	if (vp->prev)
+		vp->prev->next = vp->next;
+	if (vp->next)
+		vp->next->prev = vp->prev;
+}
+void vprop_attach(struct vprop *vp, struct vobject *vo)
+{
+	vprop_detach(vp);
+	vp->prev = vo->proplast;
+	vp->next = vo->props;
+	if (vp->next)
+		vp->next->prev = vp;
+	if (vp->prev)
+		vp->prev->next = vp;
+	else
+		vo->props = vp;
+	vo->proplast = vp;
+	/* tricky part, see struct definition */
+	vp->up = (void *)&vo->props;
+}
+
 struct vobject *vobject_first_child(const struct vobject *vo)
 {
 	return vo ? vo->list : NULL;
@@ -258,17 +294,17 @@ struct vobject *vobject_next_child(const struct vobject *vo)
 }
 
 /* free a vobject */
+void vprop_free(struct vprop *vp)
+{
+	vprop_detach(vp);
+	free(vp);
+}
+
+/* free a vobject */
 void vobject_free(struct vobject *vc)
 {
-	struct vprop *vp, *saved;
-
-	for (vp = vc->props; vp; ) {
-		saved = vp;
-		/* step */
-		vp = vp->next;
-		/* remove */
-		free(saved);
-	}
+	while (vc->props)
+		vprop_free(vc->props);
 	while (vc->list)
 		vobject_free(vc->list);
 	vobject_detach(vc);
@@ -432,33 +468,33 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 	return vobject_write2(vc, fp, 80);
 }
 
+static struct vprop *vprop_dup(const struct vprop *src)
+{
+	struct vprop *dst;
+	int linelen;
+
+	linelen = (src->value - src->key) + strlen(src->value ?: "");
+	/* duplicate memory */
+	dst = zalloc(sizeof(*dst) + linelen+2);
+	memcpy(dst->key, src->key, linelen+2);
+	/* set value & meta properly */
+	if (src->value)
+		dst->value = dst->key + (src->value - src->key);
+	if (src->meta)
+		dst->meta = dst->key + (src->meta - src->key);
+	return dst;
+}
+
 struct vobject *vobject_dup_root(const struct vobject *src)
 {
 	struct vobject *dst;
-	struct vprop *vp;
 	const struct vprop *prop;
-	int linelen;
 
 	dst = zalloc(sizeof(*dst));
 	dst->type = strdup(src->type);
 
-	for (prop = vobject_props(src); prop; prop = vprop_next(prop)) {
-		linelen = (prop->value - prop->key) + strlen(prop->value ?: "");
-		/* duplicate memory */
-		vp = zalloc(sizeof(*vp) + linelen+2);
-		memcpy(vp->key, prop->key, linelen+2);
-		/* set value & meta properly */
-		if (prop->value)
-			vp->value = vp->key + (prop->value - prop->key);
-		if (prop->meta)
-			vp->meta = vp->key + (prop->meta - prop->key);
-		/* append in linked list */
-		if (dst->last)
-			dst->last->next = vp;
-		else
-			dst->props = vp;
-		dst->last = vp;
-	}
+	for (prop = vobject_props(src); prop; prop = vprop_next(prop))
+		vprop_attach(vprop_dup(prop), dst);
 	return dst;
 }
 
