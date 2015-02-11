@@ -143,6 +143,8 @@ static int parse_config(const char *filename)
 					filename, linenr);
 	}
 	fclose(fp);
+	if (line)
+		free(line);
 	return 0;
 }
 
@@ -454,7 +456,11 @@ int main(int argc, char *argv[])
 		fclose(fp);
 	} else
 		vcard_filter(stdin, needle, lookfor);
-	/* emit results to stdout */
+	/* make valgrind happy */
+	for (j = 0; j < nfiles; ++j)
+		free(files[j]);
+	if (files)
+		free(files);
 	return 0;
 }
 
