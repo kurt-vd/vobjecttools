@@ -176,26 +176,23 @@ static void cleanupstrvector(char **vec, int sep)
 }
 
 /* compact representation of meta data */
-static const char *vprop_meta_str(struct vprop *vp)
+static const char *vprop_meta_str(const char *prop)
 {
 	static char buf[1024];
-	const char *str, *eq;
 	char *ostr = buf;
 
-	for (str = vprop_next_meta(vp, NULL); str;
-			str = vprop_next_meta(vp, str)) {
-		if (!strncasecmp(str, "X-", 2))
+	for (prop = vprop_first_meta(prop); prop; prop = vprop_next(prop)) {
+		if (!strncasecmp(prop, "X-", 2))
 			/* ignore Xtended metadata */
 			continue;
-		if (!strcasecmp(vprop_name(vp), "EMAIL") &&
-				!strcasecmp(str, "TYPE=INTERNET"))
+		if (!strcasecmp(prop, "EMAIL") &&
+				!strcasecmp(prop, "TYPE=INTERNET"))
 			/* ignore 'internet' type for email ... */
 			continue;
-		eq = strchr(str, '=');
 		if (ostr > buf)
 			*ostr++ = ',';
-		strcpy(ostr, lowercase(eq ? eq+1 : str));
-		ostr += strlen(str);
+		strcpy(ostr, lowercase(vprop_value(prop) ?: prop));
+		ostr += strlen(prop);
 	}
 	return (ostr > buf) ? buf : NULL;
 }
@@ -225,31 +222,30 @@ static int browse_prop(const char *propname)
 /* print indented result */
 void vcard_indent_result(struct vobject *vc, const char *lookfor, long bitmask)
 {
-	const char *meta;
-	struct vprop *vp;
+	const char *meta, *prop;
 	int nprop = 0, nvec, j;
 	char *vec[16];
 
 	printf("%s\n", vobject_prop(vc, "FN") ?: "<no name>");
 
-	for (vp = vobject_props(vc); vp; vp = vprop_next(vp)) {
-		if (!browse && strcasecmp(lookfor, vprop_name(vp)))
+	for (prop = vobject_first_prop(vc); prop; prop = vprop_next(prop)) {
+		if (!browse && strcasecmp(lookfor, prop))
 			continue;
 		if (!browse && !(bitmask & (1L << nprop++)))
 			continue;
-		if (browse && !browse_prop(vprop_name(vp)))
+		if (browse && !browse_prop(prop))
 			continue;
 		printf("\t");
 		if (browse)
-			printf("%s ", vprop_name(vp));
+			printf("%s ", prop);
 		/* found a property, first print tags */
-		meta = vprop_meta_str(vp);
+		meta = vprop_meta_str(prop);
 		if (meta)
 			printf("\t[%s]", meta);
 		printf("\n");
 
-		nvec = savestrvector((char *)vprop_value(vp), ';', vec, 16);
-		if (!strcasecmp("ADR", vprop_name(vp))) {
+		nvec = savestrvector((char *)vprop_value(prop), ';', vec, 16);
+		if (!strcasecmp("ADR", prop)) {
 			if (vec[0] && vec[0][0])
 				printf("\t\t%s\n", vec[0]);
 			if (vec[1] && vec[1][0])
@@ -262,7 +258,7 @@ void vcard_indent_result(struct vobject *vc, const char *lookfor, long bitmask)
 				printf("\t\t%s\n", vec[4]);
 			if (vec[6] && vec[6][0])
 				printf("\t\t%s\n", vec[6]);
-		} else if (!strcasecmp("N", vprop_name(vp))) {
+		} else if (!strcasecmp("N", prop)) {
 			printf("\t\t");
 			if (vec[3] && vec[3][0])
 				printf("%s ", vec[3]);
@@ -285,8 +281,7 @@ void vcard_indent_result(struct vobject *vc, const char *lookfor, long bitmask)
 
 void vcard_add_result(struct vobject *vc, const char *lookfor, long bitmask)
 {
-	const char *name, *meta;
-	struct vprop *vp;
+	const char *name, *meta, *prop;
 	int nprop = 0;
 
 	if (indented) {
@@ -296,16 +291,16 @@ void vcard_add_result(struct vobject *vc, const char *lookfor, long bitmask)
 
 	name = vobject_prop(vc, "FN") ?: "<no name>";
 
-	for (vp = vobject_props(vc); vp; vp = vprop_next(vp)) {
-		if (strcasecmp(lookfor, vprop_name(vp)))
+	for (prop = vobject_first_prop(vc); prop; prop = vprop_next(prop)) {
+		if (strcasecmp(lookfor, prop))
 			continue;
 		if (!(bitmask & (1L << nprop++)))
 			continue;
 		if (swapoutput)
-			printf("%s\t%s", vprop_value(vp), name);
+			printf("%s\t%s", vprop_value(prop), name);
 		else
-			printf("%s\t%s", name, vprop_value(vp));
-		meta = vprop_meta_str(vp);
+			printf("%s\t%s", name, vprop_value(prop));
+		meta = vprop_meta_str(prop);
 		if (meta)
 			printf("\t%s", meta);
 		printf("\n");
@@ -334,10 +329,9 @@ static const char *searchable_telnr(const char *str)
 int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 {
 	struct vobject *vc;
-	struct vprop *vp;
 	int linenr = 0, ncards = 0, nprop, propcnt;
 	long bitmask;
-	const char *propname, *propval;
+	const char *prop, *propval;
 
 	while (1) {
 		vc = vobject_next(fp, &linenr);
@@ -351,20 +345,19 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 		nprop = 0;
 		propcnt = 0;
 		bitmask = 0;
-		for (vp = vobject_props(vc); vp; vp = vprop_next(vp)) {
+		for (prop = vobject_first_prop(vc); prop; prop = vprop_next(prop)) {
 			/* match in name */
-			propname = vprop_name(vp);
-			if (!strcasecmp(propname, "FN")) {
-				if (strcasestr(vprop_value(vp), needle))
+			if (!strcasecmp(prop, "FN")) {
+				if (strcasestr(vprop_value(prop), needle))
 					bitmask = ~0L;
-			} else if (!strcasecmp(propname, "N")) {
-				if (strcasestr(vprop_value(vp), needle))
+			} else if (!strcasecmp(prop, "N")) {
+				if (strcasestr(vprop_value(prop), needle))
 					bitmask = ~0L;
-			} else if (!strcasecmp(propname, lookfor)) {
+			} else if (!strcasecmp(prop, lookfor)) {
 				/* count props */
 				++propcnt;
-				propval = vprop_value(vp);
-				if (!strcasecmp(propname, "TEL"))
+				propval = vprop_value(prop);
+				if (!strcasecmp(prop, "TEL"))
 					propval = searchable_telnr(propval); 
 				if (strcasestr(propval, needle))
 					bitmask |= 1L << nprop;

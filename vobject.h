@@ -7,8 +7,6 @@ extern "C" {
 
 /* struct holding a complete VCard */
 struct vobject;
-/* struct holding 1 property of a VCard */
-struct vprop;
 
 /* access the application private member */
 extern void vobject_set_priv(struct vobject *vc, void *dat);
@@ -18,17 +16,17 @@ extern void *vobject_get_priv(const struct vobject *vc);
 extern const char *vobject_type(const struct vobject *vc);
 /*
  * vprop walk functions
- * vobject_props() retrieves the first property
+ * vobject_first_prop() retrieves the first property
+ * vprop_first_prop() does similar for sub-properties
  * vprop_next() retrieves subsequent ones
  */
-extern struct vprop *vobject_props(const struct vobject *vc);
-extern struct vprop *vprop_next(const struct vprop *vp);
+extern const char *vobject_first_prop(const struct vobject *vc);
+/* start walking through vprop meta data */
+extern const char *vprop_first_meta(const char *str);
+extern const char *vprop_next(const char *str);
 
 /* access the vprop attributes */
-extern const char *vprop_name(const struct vprop *vp);
-extern const char *vprop_value(const struct vprop *vp);
-/* walk through vprop meta data (start with @str == NULL) */
-extern const char *vprop_next_meta(const struct vprop *vp, const char *str);
+extern const char *vprop_value(const char *str);
 
 /* control hierarchy:
  *
@@ -43,21 +41,23 @@ extern void vobject_attach(struct vobject *obj, struct vobject *parent);
 extern void vobject_detach(struct vobject *vo);
 
 /*
- * Immediate lookup functions
+ * Immediate lookup (value!) functions
  * Only the first property of equally named properties is accessible
  * Only the value is accessible
  */
 extern const char *vobject_prop(const struct vobject *vc, const char *propname);
 
 /*
- * Lookup metadata immediate
+ * Lookup metadata value immediate
  *
  * Returns
  * - the value when present
  * - an empty string when metadata found without value
  * - NULL when not found
  */
-extern const char *vprop_meta(const struct vprop *prop, const char *metaname);
+extern const char *vprop_meta(const char *prop, const char *metaname);
+
+/* FILE IO */
 
 /* read next vobject from file */
 extern struct vobject *vobject_next(FILE *fp, int *linenr);

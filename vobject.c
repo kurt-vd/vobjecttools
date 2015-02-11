@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #include <syslog.h>
 
@@ -36,23 +37,14 @@ static void *zalloc(unsigned int size)
 struct vobject {
 	char *type; /* VCALENDAR, VCARD, VEVENT, ... */
 	struct vprop {
-		/* IMPORTANT: next & prev must match parents 'props & proplast' */
+		/* IMPORTANT: sub & lastsub order must match parents 'props & proplast' */
 		struct vprop *next, *prev;
 		struct vprop *up;
-		/*
-		 * a property is just the copy of the _complete_ line (key)
-		 * value & meta are just pointers to the memory
-		 * key is null terminated
-		 * meta is a null terminated sequence
-		 */
+		/* metadata as properties */
+		struct vprop *sub, *lastsub;
+
 		char *value;
-		char *meta;
-		/*
-		 * Last member of the struct!
-		 * 1 byte is enough here for key, the actual required length
-		 * is allocated in runtime.
-		 * 8 bytes is more convenient for debugging
-		 * */
+		/* key may be used to iterate */
 		char key[8];
 	} *props, *proplast;
 	/* hierarchy */
@@ -61,6 +53,9 @@ struct vobject {
 	/* members to be used by application */
 	void *priv;
 };
+
+#define usertovprop(str) ((struct vprop *)((str)-offsetof(struct vprop, key)))
+#define vproptouser(vprop)	((vprop) ? (vprop)->key : NULL)
 
 /* access the application private member */
 void vobject_set_priv(struct vobject *vc, void *dat)
@@ -79,25 +74,25 @@ const char *vobject_type(const struct vobject *vc)
 }
 
 /* vprop walk function */
-struct vprop *vobject_props(const struct vobject *vc)
+const char *vobject_first_prop(const struct vobject *vc)
 {
-	return vc->props;
+	return vproptouser(vc->props);
 }
 
-struct vprop *vprop_next(const struct vprop *vp)
+const char *vprop_first_meta(const char *str)
 {
-	return vp->next;
+	return vproptouser(usertovprop(str)->sub);
+}
+
+const char *vprop_next(const char *key)
+{
+	return vproptouser(usertovprop(key)->next);
 }
 
 /* access vprop attributes */
-const char *vprop_name(const struct vprop *vp)
+const char *vprop_value(const char *key)
 {
-	return vp->key;
-}
-
-const char *vprop_value(const struct vprop *vp)
-{
-	return vp->value;
+	return usertovprop(key)->value;
 }
 
 /* utility to export lower case string */
@@ -126,25 +121,6 @@ const char *lowercase(const char *str)
 	return locasestr;
 }
 
-/* walk through vprop meta data */
-const char *vprop_next_meta(const struct vprop *vp, const char *str)
-{
-	/*
-	 * Avoid CAPITALIZED metadata
-	 * This will burn cpu cycles only when & each time that
-	 * the metadata is requested.
-	 * I considered that most flows will only come here when
-	 * a decision to use this vobject has already been made.
-	 */
-	if (!str)
-		return vp->meta;
-	/* take str after this str in memory, only one 0 terminator allowed */
-	str += strlen(str)+1;
-	if (str >= vp->value)
-		return NULL;
-	return str;
-}
-
 /* fast access functions */
 const char *vobject_prop(const struct vobject *vc, const char *propname)
 {
@@ -157,70 +133,15 @@ const char *vobject_prop(const struct vobject *vc, const char *propname)
 	return NULL;
 }
 
-const char *vprop_meta(const struct vprop *prop, const char *metaname)
+const char *vprop_meta(const char *prop, const char *metaname)
 {
-	const char *meta;
-	int needlelen;
+	const char *key;
 
-	needlelen = strlen(metaname);
-
-	for (meta = vprop_next_meta(prop, NULL); meta; meta = vprop_next_meta(prop, meta)) {
-		if (!strncasecmp(metaname, meta, needlelen)) {
-			if (meta[needlelen] == '=')
-				return meta+needlelen+1;
-			else if (!meta[needlelen])
-				/* no value assigned */
-				return "";
-			/* no fixed match, keep looking */
-		}
+	for (key = vprop_first_meta(prop); key; key = vprop_next(key)) {
+		if (!strcasecmp(key, metaname))
+			return vprop_value(key) ?: "";
 	}
 	return NULL;
-}
-
-static char *strchresc(const char *str, int c)
-{
-	int esc = 0;
-
-	for (; *str; ++str) {
-		if (esc) {
-			if (*str == esc)
-				esc = 0;
-		} else if (*str == c)
-			return (char *)str;
-		else if (strchr("\"'", *str))
-			esc = *str;
-	}
-	return NULL;
-}
-
-static struct vprop *vobject_append_line(struct vobject *vc, const char *line)
-{
-	struct vprop *vp;
-	char *str;
-
-	vp = zalloc(sizeof(*vp) + strlen(line));
-	strcpy(vp->key, line);
-
-	/* seperate value from key */
-	vp->value = strchresc(vp->key, ':');
-	if (vp->value)
-		*vp->value++ = 0;
-	/* seperate meta from key */
-	vp->meta = strchresc(vp->key, ';');
-	if (vp->meta) {
-		*vp->meta++ = 0;
-		/* insert null terminator */
-		for (str = strchresc(vp->meta, ';'); str; str = strchr(str, ';'))
-			*str++ = 0;
-	}
-	/* append in linked list */
-	vp->prev = vc->proplast;
-	if (vc->proplast)
-		vc->proplast->next = vp;
-	else
-		vc->props = vp;
-	vc->proplast = vp;
-	return vp;
 }
 
 /* vobject hierarchy */
@@ -259,30 +180,36 @@ void vprop_detach(struct vprop *vp)
 	 * For this to work properly,
 	 * the struct member layout is important!
 	 */
-	if (vp == vp->up->next)
-		vp->up->next = vp->next;
-	if (vp == vp->up->prev)
-		vp->up->prev = vp->prev;
+	if (vp->up && vp == vp->up->sub)
+		vp->up->sub = vp->next;
+	if (vp->up && vp == vp->up->lastsub)
+		vp->up->lastsub = vp->prev;
 	/* linked list detach */
 	if (vp->prev)
 		vp->prev->next = vp->next;
 	if (vp->next)
 		vp->next->prev = vp->prev;
+	vp->prev = vp->next = vp->up = NULL;
 }
-void vprop_attach(struct vprop *vp, struct vobject *vo)
+
+static void vprop_attach_vprop(struct vprop *vp, struct vprop *parent)
 {
 	vprop_detach(vp);
-	vp->prev = vo->proplast;
-	vp->next = vo->props;
-	if (vp->next)
-		vp->next->prev = vp;
+	vp->prev = parent->lastsub;
 	if (vp->prev)
 		vp->prev->next = vp;
 	else
-		vo->props = vp;
-	vo->proplast = vp;
-	/* tricky part, see struct definition */
-	vp->up = (void *)&vo->props;
+		parent->sub = vp;
+	parent->lastsub = vp;
+	vp->up = parent;
+}
+
+void vprop_attach(struct vprop *vp, struct vobject *vo)
+{
+	/* give a fake parent vprop pointer from vobject,
+	 * so that vprop->sub actually points to vobject->props
+	 */
+	vprop_attach_vprop(vp, (struct vprop *)(((char *)&((vo)->props))-offsetof(struct vprop, sub)));
 }
 
 struct vobject *vobject_first_child(const struct vobject *vo)
@@ -299,6 +226,10 @@ struct vobject *vobject_next_child(const struct vobject *vo)
 void vprop_free(struct vprop *vp)
 {
 	vprop_detach(vp);
+	while (vp->sub)
+		vprop_free(vp->sub);
+	if (vp->value)
+		free(vp->value);
 	free(vp);
 }
 
@@ -315,6 +246,73 @@ void vobject_free(struct vobject *vc)
 	free(vc);
 }
 
+/* FILE INPUT */
+static char *strchresc(const char *str, int c)
+{
+	int esc = 0;
+
+	for (; *str; ++str) {
+		if (esc) {
+			if (*str == esc)
+				esc = 0;
+		} else if (*str == c)
+			return (char *)str;
+		else if (strchr("\"'", *str))
+			esc = *str;
+	}
+	return NULL;
+}
+
+static struct vprop *mkvprop(const char *key, const char *value)
+{
+	struct vprop *vp;
+
+	vp = zalloc(sizeof(*vp) + strlen(key));
+	strcpy(vp->key, key);
+
+	if (value)
+		vp->value = strdup(value);
+	if (value && !vp->value)
+		elog(LOG_ERR, errno, "strdup");
+	return vp;
+}
+
+static struct vprop *strtovprop(char *line)
+{
+	struct vprop *vp;
+	char *value, *meta, *next, *end;
+
+	/* seperate value from key */
+	value = strchresc(line, ':');
+	if (value)
+		*value++ = 0;
+
+	/* seperate meta from key */
+	meta = strchresc(line, ';');
+	if (meta)
+		*meta++ = 0;
+
+	/* create vprop */
+	vp = mkvprop(line, value);
+
+	for (; meta; meta = next) {
+		next = strchresc(meta, ';');
+		if (next)
+			*next++ = 0;
+		value = strchresc(meta, '=');
+		if (value) {
+			*value++ = 0;
+			end = value + strlen(value)-1;
+			if (strchr("\"'", *value) && (*value == *end)) {
+				++value;
+				*end = 0;
+			}
+		}
+		vprop_attach_vprop(mkvprop(meta, value), vp);
+	}
+	return vp;
+}
+
 /* read next vobject from file */
 struct vobject *vobject_next(FILE *fp, int *linenr)
 {
@@ -322,6 +320,7 @@ struct vobject *vobject_next(FILE *fp, int *linenr)
 	size_t linesize = 0, savedsize = 0, savedlen = 0;
 	int ret, mylinenr = 0;
 	struct vobject *vc = NULL;
+	struct vprop *vp;
 
 	if (!linenr)
 		linenr = &mylinenr;
@@ -353,8 +352,11 @@ struct vobject *vobject_next(FILE *fp, int *linenr)
 		}
 		if (saved && *saved) {
 			/* append property */
-			if (vc)
-				vobject_append_line(vc, saved);
+			if (vc) {
+				vp = strtovprop(saved);
+				if (vp)
+					vprop_attach(vp, vc);
+			}
 			/* erase saved stuff */
 			savedlen = 0;
 			*saved = 0;
@@ -420,9 +422,8 @@ static int appendprintf(char **pline, size_t *psize, size_t pos, const char *fmt
 int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
 {
 	int nlines = 0;
-	struct vprop *vp;
+	struct vprop *vp, *meta;
 	char *line = NULL;
-	const char *meta;
 	size_t linesize = 0, fill, pos, todo;
 	const struct vobject *child;
 
@@ -432,9 +433,10 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
 	/* iterate over all properties */
 	for (vp = vc->props; vp; vp = vp->next) {
 		fill = appendprintf(&line, &linesize, 0, "%s", vp->key);
-		for (meta = vprop_next_meta(vp, NULL); meta; meta =
-				vprop_next_meta(vp, meta))
-			fill += appendprintf(&line, &linesize, fill, ";%s", meta);
+		for (meta = vp->sub; meta; meta = meta->next)
+			fill += appendprintf(&line, &linesize, fill,
+					strpbrk(meta->value, ":;") ? ";%s=\"%s\"" : ";%s=%s",
+					meta->key, meta->value);
 		fill += appendprintf(&line, &linesize, fill, ":%s", vp->value);
 
 		if (!columns) {
@@ -474,6 +476,7 @@ static struct vprop *vprop_dup(const struct vprop *src)
 {
 	struct vprop *dst;
 	int linelen;
+	struct vprop *vp;
 
 	linelen = (src->value - src->key) + strlen(src->value ?: "");
 	/* duplicate memory */
@@ -481,9 +484,9 @@ static struct vprop *vprop_dup(const struct vprop *src)
 	memcpy(dst->key, src->key, linelen+2);
 	/* set value & meta properly */
 	if (src->value)
-		dst->value = dst->key + (src->value - src->key);
-	if (src->meta)
-		dst->meta = dst->key + (src->meta - src->key);
+		dst->value = strdup(src->value);
+	for (vp = src->sub; vp; vp = vp->next);
+		vprop_attach_vprop(vprop_dup(vp), dst);
 	return dst;
 }
 
@@ -495,7 +498,7 @@ struct vobject *vobject_dup_root(const struct vobject *src)
 	dst = zalloc(sizeof(*dst));
 	dst->type = strdup(src->type);
 
-	for (prop = vobject_props(src); prop; prop = vprop_next(prop))
+	for (prop = src->props; prop; prop = prop->next) 
 		vprop_attach(vprop_dup(prop), dst);
 	return dst;
 }

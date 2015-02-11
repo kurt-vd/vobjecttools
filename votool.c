@@ -185,13 +185,12 @@ static void myvobject_write(const struct vobject *vo)
 static void copy_timezones(const struct vobject *dut, struct vobject *root,
 		const struct vobject *origroot)
 {
-	const struct vprop *vprop;
-	const char *tzstr;
+	const char *prop, *tzstr;
 
 	const struct vobject *tz;
 
-	for (vprop = vobject_props(dut); vprop; vprop = vprop_next(vprop)) {
-		tzstr = vprop_meta(vprop, "tzid");
+	for (prop = vobject_first_prop(dut); prop; prop = vprop_next(prop)) {
+		tzstr = vprop_meta(prop, "tzid");
 		if (!tzstr)
 			continue;
 
