@@ -5,16 +5,18 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+#include <syslog.h>
+
 #include "vobject.h"
 
 /* generic error logging */
-#define elog(exitcode, errnum, fmt, ...) \
+#define elog(level, errnum, fmt, ...) \
 	{\
 		fprintf(stderr, "%s: " fmt "\n", "vobject", ##__VA_ARGS__);\
 		if (errnum)\
 			fprintf(stderr, "\t: %s\n", strerror(errnum));\
-		if (exitcode)\
-			exit(exitcode);\
+		if (level >= LOG_ERR)\
+			exit(1);\
 		fflush(stderr);\
 	}
 
@@ -25,7 +27,7 @@ static void *zalloc(unsigned int size)
 
 	ptr = malloc(size);
 	if (!ptr)
-		elog(1, errno, "malloc %u", size);
+		elog(LOG_ERR, errno, "malloc %u", size);
 	memset(ptr, 0, size);
 	return ptr;
 }
@@ -328,7 +330,7 @@ struct vobject *vobject_next(FILE *fp, int *linenr)
 		ret = getline(&line, &linesize, fp);
 		if (ret < 0) {
 			if (vc)
-				elog(0, 0, "unexpected EOF on line %u", *linenr);
+				elog(LOG_INFO, 0, "unexpected EOF on line %u", *linenr);
 			break;
 		}
 		++(*linenr);
@@ -338,7 +340,7 @@ struct vobject *vobject_next(FILE *fp, int *linenr)
 		if (strchr("\t ", *line)) {
 			/* add line to previous */
 			if (!saved || !*saved) {
-				elog(0, 0, "bad line %u", *linenr);
+				elog(LOG_INFO, 0, "bad line %u", *linenr);
 				continue;
 			}
 			if (savedlen + ret -1 + 1 > savedsize) {
@@ -447,7 +449,7 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
 			if (pos)
 				fputc(' ', fp);
 			if (fwrite(line+pos, todo, 1, fp) < 0)
-				elog(1, errno, "fwrite");
+				elog(LOG_ERR, errno, "fwrite");
 			fputc('\n', fp);
 			++nlines;
 		}
