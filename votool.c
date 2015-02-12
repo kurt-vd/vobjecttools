@@ -362,7 +362,6 @@ int main(int argc, char *argv[])
 			icalsplit(fp, basename(*argv));
 			fclose(fp);
 		}
-		return 0;
 	} else if (action && !strcmp("cat", action)) {
 		struct vobject * vc;
 		int linenr = 0;
@@ -386,7 +385,6 @@ int main(int argc, char *argv[])
 			}
 			fclose(fp);
 		}
-		return 0;
 	} else if (action && !strcmp("subject", action)) {
 		struct vobject *vc;
 		int linenr;
@@ -408,10 +406,11 @@ int main(int argc, char *argv[])
 			printf("%s\t%s\n", *argv, vosubject(vc));
 			vobject_free(vc);
 		}
+	} else {
+		fprintf(stderr, "unknown action '%s'\n", action ?: "<>");
+		fputs(help_msg, stderr);
+		exit(1);
 	}
-
-	fprintf(stderr, "unknown action '%s'\n", action ?: "<>");
-	fputs(help_msg, stderr);
-	exit(1);
+	return 0;
 }
 
