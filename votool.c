@@ -42,15 +42,16 @@
 /* program options */
 static const char help_msg[] =
 	NAME ": split ical/vcard into files with 1 single element\n"
-	"usage:	" NAME " -a ACTION [OPTIONS ...] [FILE ...]\n"
+	"usage:	" NAME " ACTION [OPTIONS ...] [FILE ...]\n"
+	"\n"
+	"Actions\n"
+	" *cat		Read & write to stdout\n"
+	"  split	Split VCalendar's so each contains only 1 VEVENT\n"
+	"  subject	Return a subject for each vobject\n"
 	"\n"
 	"Options\n"
 	" -V, --version		Show version\n"
 	" -v, --verbose		Verbose output\n"
-	" -a, --action=ACTION	Perform action, one of:\n"
-	"	* cat		Read & write to stdout\n"
-	"	- split		Split VCalendar's so each contains only 1 VEVENT\n"
-	"	- subject	Return a subject for each vobject\n"
 	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
 	"	* break		Break lines on 80 columns\n"
 	" -O, --output=FILE	Output all vobjects to FILE\n"
@@ -73,7 +74,6 @@ static struct option long_opts[] = {
 	{ "version", no_argument, NULL, 'V', },
 	{ "verbose", no_argument, NULL, 'v', },
 
-	{ "action", required_argument, NULL, 'a', },
 	{ "options", required_argument, NULL, 'o', },
 	{ "output", required_argument, NULL, 'O', },
 
@@ -83,7 +83,7 @@ static struct option long_opts[] = {
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?a:o:O:";
+static const char optstring[] = "Vv?o:O:";
 
 /* program variables */
 static int verbose;
@@ -284,6 +284,15 @@ int main(int argc, char *argv[])
 	int not;
 	char *subopts;
 
+	if (!argv[1]) {
+		fputs(help_msg, stderr);
+		exit(1);
+	}
+	if (argv[1][0] != '-') {
+		/* consume action */
+		action = argv[1];
+		optind = 2;
+	}
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
 	switch (opt) {
@@ -293,9 +302,6 @@ int main(int argc, char *argv[])
 		exit(0);
 	case 'v':
 		++verbose;
-		break;
-	case 'a':
-		action = optarg;
 		break;
 
 	case 'o':
