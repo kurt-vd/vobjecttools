@@ -127,6 +127,11 @@ static void redirect_output(void)
 	}
 }
 
+static const char *find_suffix(const struct vobject *vo)
+{
+	return !strcasecmp("vcard", vobject_type(vo)) ? "vcf" : "ics";
+}
+
 static const char *find_prefix(const struct vobject *vo)
 {
 	const char *type = vobject_type(vo), *saved_type;
@@ -167,8 +172,8 @@ static void myvobject_write(const struct vobject *vo)
 		vobject_write2(vo, stdout, testflag(O_BREAK) ? 80 : 0);
 		return;
 	}
-	sprintf(filename, "XXXXXX.%s", find_prefix(vo) ?: "ics");
-	fd = mkstemps(filename, strlen(filename)-6);
+	sprintf(filename, "%s-XXXXXX.%s", find_prefix(vo) ?: "cal", find_suffix(vo));
+	fd = mkstemps(filename, strlen(strrchr(filename, '.')));
 	if (fd < 0)
 		elog(1, errno, "mkstmp %s", filename);
 	fp = fdopen(fd, "w");
