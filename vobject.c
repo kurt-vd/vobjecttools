@@ -419,7 +419,7 @@ static int appendprintf(char **pline, size_t *psize, size_t pos, const char *fmt
 }
 
 /* output vobjects, returns the number of ascii lines */
-int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
+int vobject_write2(const struct vobject *vc, FILE *fp, int flags)
 {
 	int nlines = 0;
 	struct vprop *vp, *meta;
@@ -439,7 +439,7 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
 					meta->key, meta->value);
 		fill += appendprintf(&line, &linesize, fill, ":%s", vp->value);
 
-		if (!columns) {
+		if (flags & VOF_NOBREAK) {
 			fputs(line, fp);
 			fputc('\n', fp);
 			++nlines;
@@ -459,7 +459,7 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
 
 	/* write child objects */
 	for (child = vobject_first_child(vc); child; child = vobject_next_child(child))
-		nlines += vobject_write2(child, fp, columns);
+		nlines += vobject_write2(child, fp, flags);
 
 	/* terminate vobject */
 	fprintf(fp, "END:%s\n", vc->type);
@@ -469,7 +469,7 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int columns)
 
 int vobject_write(const struct vobject *vc, FILE *fp)
 {
-	return vobject_write2(vc, fp, 80);
+	return vobject_write2(vc, fp, 0);
 }
 
 static struct vprop *vprop_dup(const struct vprop *src)

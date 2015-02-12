@@ -63,8 +63,8 @@ static const char help_msg[] =
 	;
 
 static char *const subopttable[] = {
-	"break",
-#define O_BREAK	0
+	"break", /* matches VOF_BREAK */
+	"utf8", /* matches VOF_UTF8 */
 	0,
 };
 
@@ -88,13 +88,8 @@ static const char optstring[] = "Vv?o:O:";
 /* program variables */
 static int verbose;
 static const char *action;
-static int flags = 1 << O_BREAK;
+static int flags;
 static char *outputfile;
-
-static int testflag(int num)
-{
-	return !!(flags & (1 << num));
-}
 
 /* generic file open method */
 static FILE *myfopen(const char *filename, const char *mode)
@@ -169,7 +164,7 @@ static void myvobject_write(const struct vobject *vo)
 
 	if (outputfile) {
 		/* output to single file, dup2'd to stdout */
-		vobject_write2(vo, stdout, testflag(O_BREAK) ? 80 : 0);
+		vobject_write2(vo, stdout, flags);
 		return;
 	}
 	sprintf(filename, "%s-XXXXXX.%s", find_prefix(vo) ?: "cal", find_suffix(vo));
@@ -179,7 +174,7 @@ static void myvobject_write(const struct vobject *vo)
 	fp = fdopen(fd, "w");
 	if (!fp)
 		elog(1, errno, "fdopen %s", filename);
-	vobject_write2(vo, fp, testflag(O_BREAK) ? 80 : 0);
+	vobject_write2(vo, fp, flags);
 	fclose(fp);
 	close(fd);
 }
@@ -319,6 +314,9 @@ int main(int argc, char *argv[])
 			if (opt < 0)
 				break;
 			switch (opt) {
+			case 0:
+				/* invert 'not' */
+				not = !not;
 			default:
 				/* make sure O_xxx & FL_xxx correspond */
 				if (not)
@@ -383,7 +381,7 @@ int main(int argc, char *argv[])
 				vc = vobject_next(fp, &linenr);
 				if (!vc)
 					break;
-				vobject_write2(vc, stdout, testflag(O_BREAK) ? 80 : 0);
+				vobject_write2(vc, stdout, flags);
 				vobject_free(vc);
 			}
 			fclose(fp);
