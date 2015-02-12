@@ -475,17 +475,15 @@ int vobject_write(const struct vobject *vc, FILE *fp)
 static struct vprop *vprop_dup(const struct vprop *src)
 {
 	struct vprop *dst;
-	int linelen;
 	struct vprop *vp;
 
-	linelen = (src->value - src->key) + strlen(src->value ?: "");
 	/* duplicate memory */
-	dst = zalloc(sizeof(*dst) + linelen+2);
-	memcpy(dst->key, src->key, linelen+2);
+	dst = zalloc(sizeof(*dst) + strlen(src->key));
+	strcpy(dst->key, src->key);
 	/* set value & meta properly */
 	if (src->value)
 		dst->value = strdup(src->value);
-	for (vp = src->sub; vp; vp = vp->next);
+	for (vp = src->sub; vp; vp = vp->next)
 		vprop_attach_vprop(vprop_dup(vp), dst);
 	return dst;
 }
