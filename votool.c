@@ -372,7 +372,7 @@ int main(int argc, char *argv[])
 				vc = vobject_next(fp, &linenr);
 				if (!vc)
 					break;
-				vobject_write(vc, stdout);
+				vobject_write2(vc, stdout, testflag(O_BREAK) ? 80 : 0);
 				vobject_free(vc);
 			}
 			fclose(fp);
