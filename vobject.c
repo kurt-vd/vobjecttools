@@ -446,8 +446,15 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int flags)
 		} else
 		for (pos = 0; pos < fill; pos += todo) {
 			todo = pos ? 79 : 80;
-			if (pos + todo > fill)
+			if (pos + todo >= fill)
 				todo = fill - pos;
+			else if (flags & VOF_UTF8) {
+				for (; todo > 72; --todo) {
+					if ((line[pos+todo] & 0xc0) != 0x80)
+						/* next byte is a start sequence */
+						break;
+				}
+			}
 			if (pos)
 				fputc(' ', fp);
 			if (fwrite(line+pos, todo, 1, fp) < 0)
