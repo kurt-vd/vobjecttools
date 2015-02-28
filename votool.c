@@ -54,6 +54,7 @@ static const char help_msg[] =
 	" -v, --verbose		Verbose output\n"
 	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
 	"	* break		Break lines on 80 columns\n"
+	"	  utf8		Avoid breaking inside UTF8 sequences, break before\n"
 	" -O, --output=FILE	Output all vobjects to FILE\n"
 
 	"\n"
