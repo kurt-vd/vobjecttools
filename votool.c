@@ -88,7 +88,7 @@ static const char optstring[] = "Vv?o:O:";
 
 /* program variables */
 static int verbose;
-static const char *action;
+static const char *action = "";
 static int flags;
 static char *outputfile;
 
@@ -348,7 +348,7 @@ int main(int argc, char *argv[])
 		argv = NULL;
 
 	/* differentiate */
-	if (action && !strcmp("split", action)) {
+	if (!strcmp("split", action)) {
 		if (!argv)
 			/* avoid creating output */
 			elog(1, 0, "no input files");
@@ -363,7 +363,7 @@ int main(int argc, char *argv[])
 			icalsplit(fp, basename(*argv));
 			fclose(fp);
 		}
-	} else if (action && !strcmp("cat", action)) {
+	} else if (!strcmp("cat", action)) {
 		struct vobject * vc;
 		int linenr = 0;
 
@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
 			}
 			fclose(fp);
 		}
-	} else if (action && !strcmp("subject", action)) {
+	} else if (!strcmp("subject", action)) {
 		struct vobject *vc;
 		int linenr;
 
