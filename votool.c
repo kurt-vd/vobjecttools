@@ -63,6 +63,11 @@ static const char help_msg[] =
 	"		No files means 'stdin only'\n"
 	;
 
+enum subopt {
+	OPT_BREAK = 0,
+	OPT_UTF8,
+};
+
 static char *const subopttable[] = {
 	"break", /* matches VOF_BREAK */
 	"utf8", /* matches VOF_UTF8 */
@@ -308,14 +313,18 @@ int main(int argc, char *argv[])
 	case 'o':
 		subopts = optarg;
 		while (*subopts) {
+			const char *saved = subopts;
+
 			not = !strncmp(subopts, "no", 2);
 			if (not)
 				subopts += 2;
 			opt = getsubopt(&subopts, subopttable, &optarg);
-			if (opt < 0)
+			if (opt < 0) {
+				elog(1, 0, "suboption '%s' unrecognized", saved);
 				break;
+			}
 			switch (opt) {
-			case 0:
+			case OPT_BREAK:
 				/* invert 'not' */
 				not = !not;
 			default:
