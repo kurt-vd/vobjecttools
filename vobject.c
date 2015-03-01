@@ -426,8 +426,9 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int flags)
 	char *line = NULL;
 	size_t linesize = 0, fill, pos, todo;
 	const struct vobject *child;
+	const char *newline = (flags & VOF_CRNL) ? "\r\n" : "\n";
 
-	fprintf(fp, "BEGIN:%s\n", vc->type);
+	fprintf(fp, "BEGIN:%s%s", vc->type, newline);
 	++nlines;
 
 	/* iterate over all properties */
@@ -441,7 +442,7 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int flags)
 
 		if (flags & VOF_NOBREAK) {
 			fputs(line, fp);
-			fputc('\n', fp);
+			fputs(newline, fp);
 			++nlines;
 		} else
 		for (pos = 0; pos < fill; pos += todo) {
@@ -459,7 +460,7 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int flags)
 				fputc(' ', fp);
 			if (fwrite(line+pos, todo, 1, fp) < 0)
 				elog(LOG_ERR, errno, "fwrite");
-			fputc('\n', fp);
+			fputs(newline, fp);
 			++nlines;
 		}
 	}
@@ -469,7 +470,7 @@ int vobject_write2(const struct vobject *vc, FILE *fp, int flags)
 		nlines += vobject_write2(child, fp, flags);
 
 	/* terminate vobject */
-	fprintf(fp, "END:%s\n", vc->type);
+	fprintf(fp, "END:%s%s", vc->type, newline);
 	++nlines;
 	return nlines;
 }

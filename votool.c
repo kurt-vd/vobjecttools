@@ -55,6 +55,7 @@ static const char help_msg[] =
 	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
 	"	* break		Break lines on 80 columns\n"
 	"	  utf8		Avoid breaking inside UTF8 sequences, break before\n"
+	"	  crnl		write with \\r\\n line endings\n"
 	"	  fix		Fix vobjects before processing\n"
 	"			- Enforce single N for VCard\n"
 	" -O, --output=FILE	Output all vobjects to FILE\n"
@@ -68,12 +69,14 @@ static const char help_msg[] =
 enum subopt {
 	OPT_BREAK = 0,
 	OPT_UTF8,
+	OPT_CRNL,
 	OPT_FIX,
 };
 
 static char *const subopttable[] = {
 	"break", /* matches VOF_BREAK */
 	"utf8", /* matches VOF_UTF8 */
+	"cr",
 	"fix",
 
 	0,

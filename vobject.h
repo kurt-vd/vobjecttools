@@ -70,6 +70,7 @@ extern int vobject_write(const struct vobject *vc, FILE *fp);
 extern int vobject_write2(const struct vobject *vc, FILE *fp, int flags);
 #define VOF_NOBREAK	0x01 /* allow lines >80 characters */
 #define VOF_UTF8	0x02 /* break lines on UTF8 start charachters */
+#define VOF_CRNL	0x04 /* \r\n for newlines */
 
 /* free a vobject */
 extern void vobject_free(struct vobject *vc);
