@@ -55,6 +55,7 @@ static const char help_msg[] =
 	" -o, --options=OPTS	Add extra KEY[=VALUE] pairs\n"
 	"	* break		Break lines on 80 columns\n"
 	"	  utf8		Avoid breaking inside UTF8 sequences, break before\n"
+	"	  fix		Fix vobjects before processing\n"
 	" -O, --output=FILE	Output all vobjects to FILE\n"
 
 	"\n"
@@ -66,11 +67,14 @@ static const char help_msg[] =
 enum subopt {
 	OPT_BREAK = 0,
 	OPT_UTF8,
+	OPT_FIX,
 };
 
 static char *const subopttable[] = {
 	"break", /* matches VOF_BREAK */
 	"utf8", /* matches VOF_UTF8 */
+	"fix",
+
 	0,
 };
 
@@ -125,6 +129,17 @@ static void redirect_output(void)
 		if (dup2(fd, STDOUT_FILENO) < 0)
 			elog(1, errno, "dup2 %s", outputfile);
 		close(fd);
+	}
+}
+
+/* fix some vobject problems */
+static void vobject_fix(struct vobject *vo)
+{
+	if (!strcasecmp(vobject_type(vo), "VCALENDAR")) {
+		for (vo = vobject_first_child(vo); vo;
+				vo = vobject_next_child(vo))
+			vobject_fix(vo);
+		return;
 	}
 }
 
@@ -236,6 +251,8 @@ void icalsplit(FILE *fp, const char *name)
 		root = vobject_next(fp, &linenr);
 		if (!root)
 			break;
+		if (flags & (1 << OPT_FIX))
+			vobject_fix(root);
 		if (strcasecmp(vobject_type(root), "VCALENDAR"))
 			/* save single non-calendar element */
 			myvobject_write(root);
@@ -390,6 +407,8 @@ int main(int argc, char *argv[])
 				vc = vobject_next(fp, &linenr);
 				if (!vc)
 					break;
+				if (flags & (1 << OPT_FIX))
+					vobject_fix(vc);
 				vobject_write2(vc, stdout, flags);
 				vobject_free(vc);
 			}
