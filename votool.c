@@ -56,6 +56,7 @@ static const char help_msg[] =
 	"	* break		Break lines on 80 columns\n"
 	"	  utf8		Avoid breaking inside UTF8 sequences, break before\n"
 	"	  fix		Fix vobjects before processing\n"
+	"			- Enforce single N for VCard\n"
 	" -O, --output=FILE	Output all vobjects to FILE\n"
 
 	"\n"
@@ -140,6 +141,25 @@ static void vobject_fix(struct vobject *vo)
 				vo = vobject_next_child(vo))
 			vobject_fix(vo);
 		return;
+	} else if (!strcasecmp(vobject_type(vo), "VCARD")) {
+		const char *propn, *next;
+		const char *Nvalue = NULL, *str;
+
+		for (propn = vobject_first_prop(vo); propn; propn = next) {
+			/* get next prop already */
+			next = vprop_next(propn);
+			if (!strcasecmp(propn, "N")) {
+				str = vprop_value(propn);
+				if (!Nvalue)
+					Nvalue = str;
+				else if (strcmp(str, Nvalue)) {
+					elog(0, 0, "remove N:%s for N:%s", str, Nvalue);
+					vprop_remove(propn);
+				} else {
+					vprop_remove(propn);
+				}
+			}
+		}
 	}
 }
 
