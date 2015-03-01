@@ -204,7 +204,7 @@ static void vprop_attach_vprop(struct vprop *vp, struct vprop *parent)
 	vp->up = parent;
 }
 
-void vprop_attach(struct vprop *vp, struct vobject *vo)
+static void vprop_attach(struct vprop *vp, struct vobject *vo)
 {
 	/* give a fake parent vprop pointer from vobject,
 	 * so that vprop->sub actually points to vobject->props
@@ -223,7 +223,7 @@ struct vobject *vobject_next_child(const struct vobject *vo)
 }
 
 /* free a vobject */
-void vprop_free(struct vprop *vp)
+static void vprop_free(struct vprop *vp)
 {
 	vprop_detach(vp);
 	while (vp->sub)
@@ -518,4 +518,13 @@ struct vobject *vobject_dup(const struct vobject *src)
 		vobject_attach(sub, dst);
 	}
 	return dst;
+}
+
+/* VPROP manipulation */
+void vprop_remove(const char *prop)
+{
+	struct vprop *vprop = usertovprop(prop);
+
+	vprop_detach(vprop);
+	vprop_free(vprop);
 }

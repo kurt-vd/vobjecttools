@@ -28,6 +28,9 @@ extern const char *vprop_next(const char *str);
 /* access the vprop attributes */
 extern const char *vprop_value(const char *str);
 
+/* vprop manipulation */
+extern void vprop_remove(const char *str);
+
 /* control hierarchy:
  *
  * vobject_first returns the first child vobject of a parent
