@@ -222,6 +222,35 @@ struct vobject *vobject_next_child(const struct vobject *vo)
 	return vo ? vo->next : NULL;
 }
 
+/* sort */
+void vobject_sort_props(struct vobject *vo,
+		int (*cmp)(const char *, const char *))
+{
+	struct vprop *ref, *lp, *tmp;
+	if (!vo)
+		return;
+	for (ref = vo->props; ref; ref = ref->next) {
+		for (lp = vo->proplast; lp != ref; lp = lp->prev) {
+			if (cmp(ref->key, lp->key) > 0) {
+				fprintf(stderr, "%p %p, %s before %s\n", ref, lp, ref->key, lp->key);
+				tmp = lp->prev;
+				/* extract @lp */
+				lp->prev->next = lp->next;
+				if (lp->next)
+					lp->next->prev = lp->prev;
+				lp->next = ref;
+				lp->prev = ref->prev;
+				ref->prev = lp;
+				if (lp->prev)
+					lp->prev->next = lp;
+				ref = lp;
+				lp = tmp;
+				fprintf(stderr, "%p %p\n", ref, lp);
+			}
+		}
+	}
+}
+
 /* free a vobject */
 static void vprop_free(struct vprop *vp)
 {

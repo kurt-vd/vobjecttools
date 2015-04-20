@@ -25,6 +25,10 @@ extern const char *vobject_first_prop(const struct vobject *vc);
 extern const char *vprop_first_meta(const char *str);
 extern const char *vprop_next(const char *str);
 
+/* sort props */
+extern void vobject_sort_props(struct vobject *vo,
+		int (*cmp)(const char *, const char *));
+
 /* access the vprop attributes */
 extern const char *vprop_value(const char *str);
 
