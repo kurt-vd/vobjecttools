@@ -2,7 +2,7 @@
 *.o
 
 # output binaries
-vcardquery
+vofind
 votool
 
 # build configuration

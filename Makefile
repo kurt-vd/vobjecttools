@@ -1,4 +1,4 @@
-PROGRAMS = vcardquery votool
+PROGRAMS = vofind votool
 default: $(PROGRAMS)
 
 LOCALVERSION	:= $(shell ./getlocalversion .)
@@ -11,7 +11,7 @@ CPPFLAGS= -D_GNU_SOURCE
 
 CPPFLAGS+= -DVERSION="\"$(LOCALVERSION)\""
 
-vcardquery: vobject.o
+vofind: vobject.o
 votool: vobject.o
 
 install: $(PROGRAMS)

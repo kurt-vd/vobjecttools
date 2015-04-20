@@ -371,8 +371,8 @@ int main(int argc, char *argv[])
 	FILE *fp;
 	int mutt = 0;
 
-	parse_config("/etc/vcardquery.conf");
-	parse_config("~/.vcardquery");
+	parse_config("/etc/vofind.conf");
+	parse_config("~/.vofind");
 	/* argument parsing */
 	while ((opt = getopt_long(argc, argv, optstring, long_opts, NULL)) >= 0)
 	switch (opt) {
