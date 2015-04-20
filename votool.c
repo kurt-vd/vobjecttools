@@ -71,6 +71,7 @@ enum subopt {
 	OPT_UTF8,
 	OPT_CRNL,
 	OPT_FIX,
+	OPT_SORT,
 };
 
 static char *const subopttable[] = {
@@ -78,7 +79,7 @@ static char *const subopttable[] = {
 	"utf8", /* matches VOF_UTF8 */
 	"cr",
 	"fix",
-
+	"sort",
 	0,
 };
 
@@ -164,6 +165,34 @@ static void vobject_fix(struct vobject *vo)
 			}
 		}
 	}
+}
+
+/* sort properties */
+static int localcmp(const char *a, const char *b)
+{
+	int ret;
+
+	ret = strcasecmp(a, b);
+	/*
+	if (!ret)
+		return ret;
+	if (!strcasecmp(a, "VERSION"))
+		return -1;
+	else if (!strcasecmp(b, "VERSION"))
+		return +1;
+	if (!strcasecmp(a, "UID"))
+		return -1;
+	else if (!strcasecmp(b, "UID"))
+		return +1;
+		*/
+	return ret;
+}
+
+static void local_vobject_sort(struct vobject *vo)
+{
+	vobject_sort_props(vo, localcmp);
+	for (vo = vobject_first_child(vo); vo; vo = vobject_next_child(vo))
+		local_vobject_sort(vo);
 }
 
 static const char *find_suffix(const struct vobject *vo)
@@ -276,6 +305,8 @@ void icalsplit(FILE *fp, const char *name)
 			break;
 		if (flags & (1 << OPT_FIX))
 			vobject_fix(root);
+		if (flags & (1 << OPT_SORT))
+			local_vobject_sort(root);
 		if (strcasecmp(vobject_type(root), "VCALENDAR"))
 			/* save single non-calendar element */
 			myvobject_write(root);
@@ -432,6 +463,8 @@ int main(int argc, char *argv[])
 					break;
 				if (flags & (1 << OPT_FIX))
 					vobject_fix(vc);
+				if (flags & (1 << OPT_SORT))
+					local_vobject_sort(vc);
 				vobject_write2(vc, stdout, flags);
 				vobject_free(vc);
 			}
