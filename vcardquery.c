@@ -229,29 +229,29 @@ void vcard_showall_result(struct vobject *vc, const char *lookfor, long bitmask)
 	for (prop = vobject_first_prop(vc); prop; prop = vprop_next(prop)) {
 		if (!showall_prop(prop))
 			continue;
-		printf("\t%s", prop);
+		printf("\t%s\t", prop);
 		/* found a property, first print tags */
 		meta = vprop_meta_str(prop);
 		if (meta)
-			printf("\t[%s]", meta);
-		printf("\n");
+			printf("[%s]\t", meta);
 
 		nvec = savestrvector((char *)vprop_value(prop), ';', vec, 16);
 		if (!strcasecmp("ADR", prop)) {
+			int chrs = 0;
+
 			if (vec[0] && vec[0][0])
-				printf("\t\t%s\n", vec[0]);
+				chrs += printf("%s%s", chrs ? ", " : "", vec[0]);
 			if (vec[1] && vec[1][0])
-				printf("\t\t%s\n", vec[1]);
+				chrs += printf("%s%s", chrs ? ", " : "", vec[1]);
 			if (vec[2] && vec[2][0])
-				printf("\t\t%s\n", vec[2]);
+				chrs += printf("%s%s", chrs ? ", " : "", vec[2]);
 			if ((vec[3] && vec[3][0]) || (vec[5] && vec[5][0]))
-				printf("\t\t%s %s\n", vec[5], vec[3]);
+				chrs += printf("%s%s %s", chrs ? ", " : "", vec[5], vec[3]);
 			if (vec[4] && vec[4][0])
-				printf("\t\t%s\n", vec[4]);
+				chrs += printf("%s%s", chrs ? ", " : "", vec[4]);
 			if (vec[6] && vec[6][0])
-				printf("\t\t%s\n", vec[6]);
+				chrs += printf("%s%s", chrs ? ", " : "", vec[6]);
 		} else if (!strcasecmp("N", prop)) {
-			printf("\t\t");
 			if (vec[3] && vec[3][0])
 				printf("%s ", vec[3]);
 			if (vec[1] && vec[1][0])
@@ -262,11 +262,11 @@ void vcard_showall_result(struct vobject *vc, const char *lookfor, long bitmask)
 				printf("%s", vec[0]);
 			if (vec[4] && vec[4][0])
 				printf(" %s", vec[4]);
-			printf("\n");
 		} else for (j = 0; j < nvec; ++j) {
 			if (vec[j] && vec[j][0])
-				printf("\t\t%s\n", vec[j]);
+				printf("%s%s", j ? ", " : "", vec[j]);
 		}
+		printf("\n");
 		cleanupstrvector(vec, ';');
 	}
 }
