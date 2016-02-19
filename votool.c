@@ -77,7 +77,7 @@ enum subopt {
 static char *const subopttable[] = {
 	"break", /* matches VOF_BREAK */
 	"utf8", /* matches VOF_UTF8 */
-	"cr",
+	"crnl",
 	"fix",
 	"sort",
 	0,
