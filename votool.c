@@ -483,13 +483,14 @@ int main(int argc, char *argv[])
 			if (!fp)
 				elog(1, errno, "fopen %s", *argv);
 			linenr = 0;
-			vc = vobject_next(fp, &linenr);
-			/* only read 1 vobject */
+			while (1) {
+				vc = vobject_next(fp, &linenr);
+				if (!vc)
+					break;
+				printf("%s\t%s\n", *argv, vosubject(vc));
+				vobject_free(vc);
+			}
 			fclose(fp);
-			if (!vc)
-				continue;
-			printf("%s\t%s\n", *argv, vosubject(vc));
-			vobject_free(vc);
 		}
 	} else {
 		fprintf(stderr, "unknown action '%s'\n", action ?: "<>");
