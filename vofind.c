@@ -49,7 +49,6 @@ static const char help_msg[] =
 	" -p, --prop=PROP	Which property to retrieve (default: EMAIL)\n"
 	" -s, --swap		Output property, then name, then metadata\n"
 	" -M, --mutt		Output for Mutt (prop=EMAIL, swap + header line)\n"
-	" -a, --all		Browse all vcard info, show all fields\n"
 	"\n"
 	"Arguments\n"
 	" NEEDLE	The text to look for in NAME or <PROP>\n"
@@ -66,18 +65,16 @@ static struct option long_opts[] = {
 	{ "prop", required_argument, NULL, 'p', },
 	{ "swap", no_argument, NULL, 's', },
 	{ "mutt", no_argument, NULL, 'M', },
-	{ "all", no_argument, NULL, 'a', },
 	{ },
 };
 #else
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?p:sMa";
+static const char optstring[] = "Vv?p:sM";
 
 /* program variables */
 static int verbose;
-static int showall;
 /* print value first, then name, then metadata (like for Mutt) */
 static int swapoutput;
 
@@ -218,7 +215,7 @@ static int showall_prop(const char *propname)
 }
 
 /* print browsing result */
-void vcard_showall_result(struct vobject *vc, const char *lookfor, long bitmask)
+void vcard_showall_result(struct vobject *vc, long bitmask)
 {
 	const char *meta, *prop;
 	int nvec, j;
@@ -276,15 +273,15 @@ void vcard_add_result(struct vobject *vc, const char *lookfor, long bitmask)
 	const char *name, *meta, *prop;
 	int nprop = 0;
 
-	if (showall) {
-		vcard_showall_result(vc, lookfor, bitmask);
+	if (!lookfor) {
+		vcard_showall_result(vc, bitmask);
 		return;
 	}
 
 	name = vobject_prop(vc, "FN") ?: "<no name>";
 
 	for (prop = vobject_first_prop(vc); prop; prop = vprop_next(prop)) {
-		if (strcasecmp(lookfor, prop))
+		if (lookfor && strcasecmp(lookfor, prop))
 			continue;
 		if (!(bitmask & (1L << nprop++)))
 			continue;
@@ -345,7 +342,7 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 			} else if (!strcasecmp(prop, "N")) {
 				if (strcasestr(vprop_value(prop), needle))
 					bitmask = ~0L;
-			} else if (!strcasecmp(prop, lookfor)) {
+			} else if (!lookfor || !strcasecmp(prop, lookfor)) {
 				/* count props */
 				++propcnt;
 				propval = vprop_value(prop);
@@ -367,7 +364,7 @@ int main(int argc, char *argv[])
 {
 	int opt, j;
 	const char *needle;
-	const char *lookfor = "email";
+	const char *lookfor = NULL;
 	FILE *fp;
 	int mutt = 0;
 
@@ -394,9 +391,6 @@ int main(int argc, char *argv[])
 		mutt = 1;
 		swapoutput = 1;
 		lookfor = "EMAIL";
-		break;
-	case 'a':
-		showall = 1;
 		break;
 	case '?':
 		fputs(help_msg, stderr);
