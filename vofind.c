@@ -49,6 +49,7 @@ static const char help_msg[] =
 	" -p, --prop=PROP	Which property to retrieve (default: EMAIL)\n"
 	" -s, --swap		Output property, then name, then metadata\n"
 	" -M, --mutt		Output for Mutt (prop=EMAIL, swap + header line)\n"
+	" -L, --short-list	Output a (comma-seperated) list of matched names\n"
 	"\n"
 	"Arguments\n"
 	" NEEDLE	The text to look for in NAME or <PROP>\n"
@@ -65,18 +66,20 @@ static struct option long_opts[] = {
 	{ "prop", required_argument, NULL, 'p', },
 	{ "swap", no_argument, NULL, 's', },
 	{ "mutt", no_argument, NULL, 'M', },
+	{ "short-list", no_argument, NULL, 'L', },
 	{ },
 };
 #else
 #define getopt_long(argc, argv, optstring, longopts, longindex) \
 	getopt((argc), (argv), (optstring))
 #endif
-static const char optstring[] = "Vv?p:sM";
+static const char optstring[] = "Vv?p:sML";
 
 /* program variables */
 static int verbose;
 /* print value first, then name, then metadata (like for Mutt) */
 static int swapoutput;
+static int shortlist;
 
 /* configuration values */
 static char **files;
@@ -268,11 +271,20 @@ void vcard_showall_result(struct vobject *vc, long bitmask)
 	}
 }
 
+static int result_cnt;
+
 void vcard_add_result(struct vobject *vc, const char *lookfor, long bitmask)
 {
 	const char *name, *meta, *prop;
 	int nprop = 0;
 
+	if (shortlist) {
+		name = vobject_prop(vc, "FN") ?: "??";
+		printf("%s%s", result_cnt++ ? ", " : "", name);
+		return;
+	}
+
+	++result_cnt;
 	if (!lookfor) {
 		vcard_showall_result(vc, bitmask);
 		return;
@@ -404,6 +416,9 @@ int main(int argc, char *argv[])
 		swapoutput = 1;
 		lookfor = "EMAIL";
 		break;
+	case 'L':
+		shortlist = 1;
+		break;
 	case '?':
 		fputs(help_msg, stderr);
 		exit(0);
@@ -446,6 +461,8 @@ int main(int argc, char *argv[])
 		fclose(fp);
 	} else
 		vcard_filter(stdin, needle, lookfor);
+	if (shortlist && result_cnt)
+		printf("\n");
 	/* make valgrind happy */
 	for (j = 0; j < nfiles; ++j)
 		free(files[j]);
