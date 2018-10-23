@@ -314,6 +314,16 @@ static const char *searchable_telnr(const char *str)
 	return buf;
 }
 
+static const char *clean_telnr(const char *str)
+{
+	const char *saved_str = str;
+
+	for (; *str && !strchr("123456789", *str); ++str);
+	if (!*str)
+		return saved_str;
+	return str;
+}
+
 /* real filter program */
 int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 {
@@ -346,9 +356,11 @@ int vcard_filter(FILE *fp, const char *needle, const char *lookfor)
 				/* count props */
 				++propcnt;
 				propval = vprop_value(prop);
-				if (!strcasecmp(prop, "TEL"))
-					propval = searchable_telnr(propval); 
-				if (strcasestr(propval, needle))
+				if (!strcasecmp(prop, "TEL")) {
+					propval = searchable_telnr(propval);
+					if (strcasestr(clean_telnr(searchable_telnr(propval)), clean_telnr(needle)))
+						bitmask |= 1L << nprop;
+				} else if (strcasestr(propval, needle))
 					bitmask |= 1L << nprop;
 				++nprop;
 			}
